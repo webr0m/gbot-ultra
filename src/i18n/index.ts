@@ -1,0 +1,136 @@
+export const SUPPORTED_LANGUAGES = [
+  { code: "es", name: "Español", flag: "🇪🇸" },
+  { code: "en", name: "English", flag: "🇬🇧" },
+  { code: "pt", name: "Português", flag: "🇵🇹" },
+  { code: "fr", name: "Français", flag: "🇫🇷" },
+  { code: "de", name: "Deutsch", flag: "🇩🇪" },
+  { code: "it", name: "Italiano", flag: "🇮🇹" },
+  { code: "ru", name: "Русский", flag: "🇷🇺" },
+  { code: "tr", name: "Türkçe", flag: "🇹🇷" },
+  { code: "ar", name: "العربية", flag: "🇸🇦" },
+  { code: "zh", name: "中文", flag: "🇨🇳" },
+] as const;
+
+export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number]["code"];
+
+const translations: Record<LanguageCode, Record<string, string>> = {
+  es: {
+    welcome: "¡Bienvenido/a!",
+    help: "Ayuda y comandos",
+    settings: "Ajustes del grupo",
+    premium: "Premium",
+    error: "Ha ocurrido un error.",
+    languageChanged: "Idioma actualizado.",
+    chooseLanguage: "Elige el idioma del bot:",
+    openPanel: "Abrir panel",
+    groupConfig: "Configurar grupo",
+  },
+  en: {
+    welcome: "Welcome!",
+    help: "Help and commands",
+    settings: "Group settings",
+    premium: "Premium",
+    error: "An error occurred.",
+    languageChanged: "Language updated.",
+    chooseLanguage: "Choose the bot language:",
+    openPanel: "Open panel",
+    groupConfig: "Configure group",
+  },
+  pt: {
+    welcome: "Bem-vindo/a!",
+    help: "Ajuda e comandos",
+    settings: "Configurações do grupo",
+    premium: "Premium",
+    error: "Ocorreu um erro.",
+    languageChanged: "Idioma atualizado.",
+    chooseLanguage: "Escolha o idioma do bot:",
+    openPanel: "Abrir painel",
+    groupConfig: "Configurar grupo",
+  },
+  fr: {
+    welcome: "Bienvenue !",
+    help: "Aide et commandes",
+    settings: "Paramètres du groupe",
+    premium: "Premium",
+    error: "Une erreur est survenue.",
+    languageChanged: "Langue mise à jour.",
+    chooseLanguage: "Choisissez la langue du bot :",
+    openPanel: "Ouvrir le panneau",
+    groupConfig: "Configurer le groupe",
+  },
+  de: {
+    welcome: "Willkommen!",
+    help: "Hilfe und Befehle",
+    settings: "Gruppeneinstellungen",
+    premium: "Premium",
+    error: "Ein Fehler ist aufgetreten.",
+    languageChanged: "Sprache aktualisiert.",
+    chooseLanguage: "Wähle die Botsprache:",
+    openPanel: "Panel öffnen",
+    groupConfig: "Gruppe konfigurieren",
+  },
+  it: {
+    welcome: "Benvenuto/a!",
+    help: "Aiuto e comandi",
+    settings: "Impostazioni del gruppo",
+    premium: "Premium",
+    error: "Si è verificato un errore.",
+    languageChanged: "Lingua aggiornata.",
+    chooseLanguage: "Scegli la lingua del bot:",
+    openPanel: "Apri pannello",
+    groupConfig: "Configura gruppo",
+  },
+  ru: {
+    welcome: "Добро пожаловать!",
+    help: "Помощь и команды",
+    settings: "Настройки группы",
+    premium: "Премиум",
+    error: "Произошла ошибка.",
+    languageChanged: "Язык обновлён.",
+    chooseLanguage: "Выберите язык бота:",
+    openPanel: "Открыть панель",
+    groupConfig: "Настроить группу",
+  },
+  tr: {
+    welcome: "Hoş geldin!",
+    help: "Yardım ve komutlar",
+    settings: "Grup ayarları",
+    premium: "Premium",
+    error: "Bir hata oluştu.",
+    languageChanged: "Dil güncellendi.",
+    chooseLanguage: "Bot dilini seç:",
+    openPanel: "Paneli aç",
+    groupConfig: "Grubu yapılandır",
+  },
+  ar: {
+    welcome: "مرحباً!",
+    help: "المساعدة والأوامر",
+    settings: "إعدادات المجموعة",
+    premium: "بريميوم",
+    error: "حدث خطأ.",
+    languageChanged: "تم تحديث اللغة.",
+    chooseLanguage: "اختر لغة البوت:",
+    openPanel: "فتح اللوحة",
+    groupConfig: "تكوين المجموعة",
+  },
+  zh: {
+    welcome: "欢迎！",
+    help: "帮助与命令",
+    settings: "群组设置",
+    premium: "高级版",
+    error: "发生错误。",
+    languageChanged: "语言已更新。",
+    chooseLanguage: "选择机器人语言：",
+    openPanel: "打开面板",
+    groupConfig: "配置群组",
+  },
+};
+
+export function t(key: string, lang: string = "es"): string {
+  const code = (SUPPORTED_LANGUAGES.find((l) => l.code === lang)?.code ?? "es") as LanguageCode;
+  return translations[code]?.[key] ?? translations.es[key] ?? key;
+}
+
+export function isSupportedLanguage(lang: string): lang is LanguageCode {
+  return SUPPORTED_LANGUAGES.some((l) => l.code === lang);
+}

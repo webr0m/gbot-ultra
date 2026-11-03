@@ -1,0 +1,33 @@
+name: Validate source
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      BOT_TOKEN: 123456789:CI_TEST_TOKEN_NOT_REAL
+      DATABASE_URL: postgres://gbot:gbot@localhost:5432/gbot_test
+      DEV_MODE: 'false'
+      LOG_LEVEL: silent
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: node scripts/check-publication.mjs
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan full history with Gitleaks
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git --redact --no-banner /repo

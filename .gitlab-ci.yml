@@ -1,0 +1,23 @@
+stages: [validate]
+variables:
+  GIT_DEPTH: '0'
+  BOT_TOKEN: 123456789:CI_TEST_TOKEN_NOT_REAL
+  DATABASE_URL: postgres://gbot:gbot@localhost:5432/gbot_test
+  DEV_MODE: 'false'
+  LOG_LEVEL: silent
+checks:
+  image: node:24
+  stage: validate
+  script:
+    - npm ci
+    - node scripts/check-publication.mjs
+    - npm run typecheck
+    - npm test
+    - npm run build
+secrets:
+  image:
+    name: ghcr.io/gitleaks/gitleaks:v8.30.1
+    entrypoint: ['']
+  stage: validate
+  script:
+    - gitleaks git --redact --no-banner .

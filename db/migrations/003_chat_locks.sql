@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS chat_locks (
+  chat_id BIGINT PRIMARY KEY REFERENCES chats(chat_id) ON DELETE CASCADE,
+  permissions JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

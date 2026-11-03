@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+node scripts/check-publication.mjs
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "Install gitleaks and scan the full history before pushing." >&2
+  exit 1
+fi
+gitleaks git --redact --no-banner .

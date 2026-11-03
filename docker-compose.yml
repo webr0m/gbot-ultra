@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gbot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gbot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: gbot
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - gbot_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gbot -d gbot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  bot:
+    build: .
+    image: gbot-ultra:latest
+    profiles: ["app"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      BOT_MODE: ${BOT_MODE:-polling}
+      DATABASE_URL: ${DATABASE_URL:?Define DATABASE_URL usando postgres como host}
+      TELEGRAM_API_URL: ${TELEGRAM_API_URL:-}
+      BOT_TOKEN: ${BOT_TOKEN:?Define BOT_TOKEN en .env}
+      WEBAPP_URL: ${WEBAPP_URL:-http://localhost:8090}
+      OWNER_IDS: ${OWNER_IDS:-}
+      TZ: ${TZ:-UTC}
+      PORT: 8090
+      DEV_MODE: ${DEV_MODE:-false}
+    ports:
+      - "8090:8090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  gbot_postgres_data:

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es" translate="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Publicidad de Google</title>
+    <style>
+      html, body { margin: 0; width: 100%; }
+      .webrom-banner { display: block; width: 100%; height: 50px; }
+      @media (min-width: 468px) { .webrom-banner { height: 60px; } }
+      @media (min-width: 728px) { .webrom-banner { height: 90px; } }
+    </style>
+    <script>
+      function reportAdStatus(status) {
+        parent.postMessage({ type: "gbot-ad-status", status: status }, location.origin);
+      }
+    </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8258058186888619"
+      crossorigin="anonymous" onerror="reportAdStatus('unavailable')"></script>
+  </head>
+  <body>
+    <!-- webrom: explicit responsive heights keep the banner in its existing space. -->
+    <ins class="adsbygoogle webrom-banner"
+      data-ad-client="ca-pub-8258058186888619"
+      data-ad-slot="1577557462"></ins>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    <script>
+      const unit = document.querySelector(".adsbygoogle");
+      function checkStatus() {
+        const status = unit.getAttribute("data-ad-status");
+        if (status) reportAdStatus(status);
+      }
+      new MutationObserver(checkStatus).observe(unit, { attributes: true, attributeFilter: ["data-ad-status"] });
+      checkStatus();
+      setTimeout(function () {
+        if (unit.getAttribute("data-ad-status") !== "filled") reportAdStatus("unavailable");
+      }, 10000);
+    </script>
+  </body>
+</html>
