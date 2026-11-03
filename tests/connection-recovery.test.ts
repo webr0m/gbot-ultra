@@ -32,6 +32,7 @@ describe('Mini App transient connection recovery',()=>{
  it('enforces the total deadline while the body stalls',async()=>{
   vi.useFakeTimers();const fetch=vi.fn(async(_path,opts)=>({ok:true,text:()=>new Promise((_resolve,reject)=>opts.signal.addEventListener('abort',()=>reject(Object.assign(new Error('timeout'),{name:'AbortError'}))))}));const G=harness(fetch);const checked=expect(G.api.get('/api/chats')).rejects.toMatchObject({status:0});await vi.advanceTimersByTimeAsync(25001);await checked;expect(fetch).toHaveBeenCalledOnce();
  });
+ it('shows a recoverable error instead of leaving the bootstrap skeleton forever',async()=>{const G=harness(vi.fn(async()=>new Response('upstream',{status:503})));G.state.chat={id:-1};G.renderLoading=vi.fn();G.showFatal=vi.fn();G.toast=vi.fn();expect(await G.loadBootstrap()).toBe(false);expect(G.showFatal).toHaveBeenCalledOnce();});
  it('uses the same recovery rules for read-only downloads',async()=>{
   const fetch=vi.fn().mockRejectedValueOnce(new TypeError('reset')).mockResolvedValueOnce(new Response('export contents')),G=harness(fetch);expect(await (await G.api.blob('/api/export')).text()).toBe('export contents');expect(fetch).toHaveBeenCalledTimes(2);
  });

@@ -1,3 +1,5 @@
+import { DEVELOPER_ID } from "../services/roles.js";
+import { COMMUNITY } from "../services/community.js";
 import { tr } from "../services/bot-i18n.js";
 import { InlineKeyboard } from "grammy";
 import type { ChatRow, GroupSettings, PremiumPlan } from "../db/types.js";
@@ -7,6 +9,7 @@ export function mainMenuKeyboard(
   username: string,
   webappUrl: string | null,
   supportUrl: string,
+  actorId?: number,
 ): InlineKeyboard {
   const keyboard = new InlineKeyboard();
   if (webappUrl) keyboard.webApp(tr("🌐 Abrir panel"), webappUrl).row();
@@ -15,7 +18,10 @@ export function mainMenuKeyboard(
     .text(tr("📚 Ayuda"), "help:main")
     .row()
     .url(tr("➕ Añadir a un grupo"), `https://t.me/${username}?startgroup=true`);
-  if (supportUrl) keyboard.row().url(tr("🛟 Soporte"), supportUrl);
+  if (supportUrl && supportUrl !== COMMUNITY.contact) keyboard.row().url(tr("🛟 Soporte"), supportUrl);
+  keyboard.row().url(tr("✉️ Contacto"), COMMUNITY.contact);
+  keyboard.row().url(tr("Grupo oficial"),COMMUNITY.group).url(tr("Canal oficial"),COMMUNITY.channel);
+  if(webappUrl&&DEVELOPER_ID>0&&actorId===DEVELOPER_ID){const url=new URL(webappUrl);url.searchParams.set('tool','broadcast');url.searchParams.set('tab','settings');keyboard.row().webApp(tr("📣 Difusión"),url.href);}
   return keyboard;
 }
 
@@ -115,7 +121,8 @@ export function helpKeyboard(): InlineKeyboard {
     .text(tr("👑 Premium"), "help:premium")
     .row()
     .text(tr("🌐 Panel"), "help:panel")
-    .text(tr("⬅️ Volver"), "help:main");
+    .text(tr("⬅️ Volver"), "help:main")
+    .row().url(tr("✉️ Contacto"), COMMUNITY.contact);
 }
 
 export function backToHelpKeyboard(): InlineKeyboard {

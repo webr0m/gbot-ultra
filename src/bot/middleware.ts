@@ -1,3 +1,4 @@
+import { rememberPrivateContact,rememberBlockedContact } from "../services/bot-contacts.js";
 import { tr } from "../services/bot-i18n.js";
 import type { NextFunction } from "grammy";
 import { config } from "../config.js";
@@ -63,7 +64,7 @@ export async function attachContext(
         is_bot: false,
       }).catch((error) => logger.warn({ err: error }, tr("No se pudo guardar el usuario")));
     } else {
-      void upsertUser({
+      const saveProfile=upsertUser({
         id: from.id,
         username: from.username ?? null,
         first_name: from.first_name ?? "",
@@ -71,6 +72,7 @@ export async function attachContext(
         language_code: from.language_code ?? null,
         is_bot: false,
       }).catch((error) => logger.warn({ err: error }, tr("No se pudo guardar el usuario")));
+      if(ctx.chat?.type==='private'){await saveProfile;if(ctx.myChatMember?.new_chat_member.status==='kicked')await rememberBlockedContact(ctx.me.id,from.id).catch(()=>undefined);else if(ctx.message||ctx.callbackQuery)await rememberPrivateContact(ctx.me.id,from.id,from.language_code).catch(()=>undefined);}
     }
   }
 

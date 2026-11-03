@@ -1,6 +1,6 @@
 # GBot Ultra
 
-Bot de administración de grupos de Telegram con Mini App, moderación y planes mediante Telegram Stars. Versión 2.5.1.
+Bot de administración de grupos de Telegram con Mini App, moderación y planes mediante Telegram Stars. Versión 2.6.0.
 
 - Captcha, antienlaces, antiflood, lista negra, advertencias y registro de moderación.
 - Instalación guiada, bandeja de revisiones y respuestas en diez idiomas.
@@ -43,3 +43,9 @@ Guarda claves, identidades de instalación y conexiones de base de datos en `.en
 Este repositorio contiene código y migraciones de esquema. No contiene datos de usuarios o grupos, respaldos, registros de producción, credenciales ni el historial de repositorios anteriores.
 
 Consulta [SECURITY.md](SECURITY.md) para el control de publicación.
+
+## Comunidad oficial
+
+[Bot](https://t.me/GroupButlerEsp_bot) · [Grupo](https://t.me/GroupButlerEspGroup) · [Canal de novedades](https://t.me/GroupButlerEs) · [Contacto](https://t.me/webrom_bot). Los enlaces se centralizan en `public/community.json`.
+
+El trabajo de difusión se procesa en el hosting mediante `scripts/run-broadcasts.mjs`, programado una vez por minuto. Sus endpoints requieren la identidad de administración configurada; preparar una audiencia no envía mensajes. Se necesita una vista previa y confirmación antes de encolar. Los resultados inciertos no se reintentan automáticamente y no se activan envíos de pago.

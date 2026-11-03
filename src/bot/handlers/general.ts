@@ -1,3 +1,4 @@
+import { InlineKeyboard } from "grammy";
 import { tr } from "../../services/bot-i18n.js";
 import type { Bot } from "grammy";
 import { config, webappUrlForChat } from "../../config.js";
@@ -69,6 +70,11 @@ export function registerGeneral(bot: Bot<AppContext>): void {
       return;
     }
 
+    if(payload==='broadcast'){
+      const {assertDeveloper}=await import('../../services/roles.js');assertDeveloper(ctx.from!.id);
+      const url=new URL(config.webappUrl);url.searchParams.set('tool','broadcast');url.searchParams.set('tab','settings');
+      await ctx.reply(tr("Prepara y revisa la difusión desde el panel antes de enviarla."),{reply_markup:new InlineKeyboard().webApp(tr("Abrir herramienta"),url.href)});return;
+    }
     if (payload.startsWith("premium_")) {
       const chatId = Number(payload.slice("premium_".length));
       if (Number.isSafeInteger(chatId) && chatId !== 0) {
@@ -103,7 +109,7 @@ export function registerGeneral(bot: Bot<AppContext>): void {
     await ctx.reply(startPrivate(escapeHtml(displayName(ctx.from!)), config.hasWebapp) + sponsored, {
       parse_mode: "HTML",
       link_preview_options: { is_disabled: true },
-      reply_markup: mainMenuKeyboard(ctx.me.username, webappUrl || null, config.supportUrl),
+      reply_markup: mainMenuKeyboard(ctx.me.username, webappUrl || null, config.supportUrl,ctx.from!.id),
     });
   });
 

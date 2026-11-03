@@ -21,6 +21,8 @@ const rules=[
  ['hardcoded-installation-identity',/\bDEVELOPER_ID\s*=\s*[1-9]\d{5,}/g],
 ];
 for(const e of entries){const text=blobs.get(e.oid)??'';for(const [rule,regex]of rules){regex.lastIndex=0;for(const match of text.matchAll(regex)){
+ // JPEG's standard Huffman alphabet resembles a token; exempt only that exact public table sequence.
+ if(rule==='telegram-token'&&/\.jpe?g$/i.test(e.path)&&match[0]===('456789:'+'CDEFGHIJSTUVWXYZcdefghijstuvwxyz'))continue;
  // Only visibly fictional test fixtures may resemble a credential. Gitleaks also runs independently.
  if(e.path.startsWith('tests/')&&/(?:QA_FAKE|FAKE_QA|NOT_REAL|TEST_TOKEN|fake[-_]token)/i.test(match[0]))continue;
  issues.push({file:e.path,line:text.slice(0,match.index).split('\n').length,rule});

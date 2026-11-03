@@ -123,56 +123,13 @@ export function registerOwner(bot: Bot<AppContext>): void {
     );
   });
 
-  bot.command("broadcast", async (ctx) => {
-    if (!(await ensureOwner(ctx))) return;
-    const reply = ctx.msg?.reply_to_message;
-    const text = (reply?.text ?? reply?.caption ?? ctx.match ?? "").trim();
-    if (!text) {
-      await replyTemp(
-        ctx,
-        tr("📣 <b>Difusión</b>\n\nUso: <code>/broadcast mensaje</code> o responde a un mensaje."),
-      );
-      return;
-    }
-
-    const chats = await getActiveChats();
-    const target = chats.slice(0, 1_000);
-    let sent = 0;
-    let failed = 0;
-
-    await replyTemp(
-      ctx,
-      tr("📣 Enviando a <b>{0}</b> grupo(s)… Te avisaré al terminar.", [target.length]),
-      { seconds: 0 },
-    );
-
-    for (const chat of target) {
-      try {
-        await ctx.api.sendMessage(chat.chat_id, text, {
-          parse_mode: "HTML",
-          link_preview_options: { is_disabled: true },
-        });
-        sent += 1;
-      } catch (error) {
-        try {
-          await ctx.api.sendMessage(chat.chat_id, text);
-          sent += 1;
-        } catch (fallbackError) {
-          failed += 1;
-          logger.warn(
-            { err: fallbackError, chatId: chat.chat_id },
-            tr("No se pudo enviar la difusión"),
-          );
-        }
-      }
-      await sleep(45);
-    }
-
-    await replyTemp(
-      ctx,
-      tr("📣 <b>Difusión completada</b>\n\n✅ Enviados: <b>{0}</b>\n❌ Fallidos: <b>{1}</b>", [sent,failed]),
-      { seconds: 60 },
-    );
+  bot.command("broadcast",async ctx=>{
+    if(!(await ensureDeveloper(ctx)))return;
+    const {config}=await import('../../config.js');
+    const {InlineKeyboard}=await import('grammy');
+    const url=new URL(config.webappUrl);url.searchParams.set('tool','broadcast');url.searchParams.set('tab','settings');
+    const keyboard=ctx.chat?.type==='private'?new InlineKeyboard().webApp(tr("Abrir herramienta"),url.href):new InlineKeyboard().url(tr("Abrir herramienta"),`https://t.me/${ctx.me.username}?start=broadcast`);
+    await ctx.reply(tr("Prepara y revisa la difusión desde el panel antes de enviarla."),{reply_markup:keyboard});
   });
 
   bot.command("gban", async (ctx) => {
@@ -291,7 +248,7 @@ export function registerOwner(bot: Bot<AppContext>): void {
     if (!(await ensureOwner(ctx))) return;
     await notify(
       ctx,
-      tr("👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast texto — Envía un mensaje a todos los grupos\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario"),
+      tr("👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast — Abre el panel de difusión privada\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario"),
     );
   });
 }

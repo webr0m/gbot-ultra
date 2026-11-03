@@ -1,3 +1,4 @@
+import { registerBroadcastRoutes } from "./routes/broadcasts.js";
 import { registerQualityUndoRoutes } from "./routes/quality-undo.js";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
@@ -140,6 +141,7 @@ export async function buildServer(primary: Bot<AppContext>): Promise<FastifyInst
   registerUltraRoutes(app,bot,primary);
   registerWorkspaceRoutes(app,primary);
   registerQualityUndoRoutes(app,primary);
+  registerBroadcastRoutes(app);
   app.get('/conoce',async (_request,reply)=>reply.type('text/html; charset=utf-8').sendFile('conoce.html'));
   app.get('/comparar',async (_request,reply)=>reply.redirect('/conoce#comparativa'));
 

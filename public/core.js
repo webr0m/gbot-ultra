@@ -15,7 +15,7 @@
   G.DEMO = params.get("demo") === "1";
   G.BOT_USERNAME = "GroupButlerEsp_bot";
   G.BOT_URL = "https://t.me/GroupButlerEsp_bot";
-  G.SUPPORT_URL = "https://t.me/GroupButlerEsp_bot";
+  G.SUPPORT_URL = "https://t.me/webrom_bot";
 
   G.state = {
     demo: G.DEMO,
@@ -679,12 +679,12 @@
         G.showAuth();
         return;
       }
-      return false;
       if (!opts.silent) {
         G.showFatal(error);
       } else {
         G.toast(error.message || "No se pudo actualizar el panel.", "error");
       }
+      return false;
     }
   };
 

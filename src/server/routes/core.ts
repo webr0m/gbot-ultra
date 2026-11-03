@@ -1,3 +1,5 @@
+import { COMMUNITY } from "../../services/community.js";
+import { DEVELOPER_ID } from "../../services/roles.js";
 import type { FastifyInstance } from "fastify";
 import type { Bot } from "grammy";
 import type { AppContext } from "../../bot/context.js";
@@ -152,7 +154,8 @@ export function registerCoreRoutes(app: FastifyInstance, bot: Bot<AppContext>): 
 
     return {
       ok: true,
-      access: { owner, role: globalRole(auth.user.id, config.ownerIds), actorRights: {
+      community: COMMUNITY,
+      access: { owner, broadcast: DEVELOPER_ID>0&&auth.user.id===DEVELOPER_ID, role: globalRole(auth.user.id, config.ownerIds), actorRights: {
         can_restrict_members: owner || actor?.status === "creator" || (actor?.status === "administrator" && actor.can_restrict_members),
         can_promote_members: owner || actor?.status === "creator" || (actor?.status === "administrator" && actor.can_promote_members),
       } },

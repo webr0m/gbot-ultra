@@ -271,7 +271,6 @@
     "⚠️ Uso: <code>/setowner -1001234567890 123456789</code>": "⚠️ Usage: <code>/setowner -1001234567890 123456789</code>",
     "⚠️ Ese grupo no está registrado.": "⚠️ That group is not registered.",
     "✅ Propietario de <b>{0}</b> establecido en <code>{1}</code>.": "✅ Owner of <b>{0}</b> set to <code>{1}</code>.",
-    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast texto — Envía un mensaje a todos los grupos\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Owner commands</b>\n\n/gencode days [plan] — Generate a Premium code\n/grant chatId plan — Activate Premium directly\n/broadcast text — Send a message to all groups\n/botstats — Global statistics\n/chats — List of active groups\n/gban /ungban — Global bans\n/leave chatId — Leave a group\n/setowner chatId userId — Change owner",
     "⚠️ Ese grupo no está registrado en el bot. Añádeme al grupo y vuelve a intentarlo.": "⚠️ That group is not registered in the bot. Add me to the group and try again.",
     "🛡️ Solo los administradores del grupo pueden gestionar Premium.": "🛡️ Only group administrators can manage Premium.",
     "⚙️ Consulta la configuración de tu cuenta desde /panel.": "⚙️ Check your account settings from /panel.",
@@ -958,7 +957,14 @@
     "Calidad de reglas": "Rule quality",
     "Deshacer sanciones requiere Pro o Ultra.": "Undoing sanctions requires Pro or Ultra.",
     "Calidad de reglas requiere Ultra.": "Rule quality requires Ultra.",
-    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "Choose the group from /panel and open the tool in Settings or Moderation."
+    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "Choose the group from /panel and open the tool in Settings or Moderation.",
+    "Grupo oficial": "Official group",
+    "Canal oficial": "Official channel",
+    "🌐 Web y planes": "🌐 Website and plans",
+    "Prepara y revisa la difusión desde el panel antes de enviarla.": "Prepare and review the broadcast in the panel before sending it.",
+    "📣 Difusión": "📣 Broadcast",
+    "✉️ Contacto": "✉️ Contact",
+    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast — Abre el panel de difusión privada\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Owner commands</b>\n\n/gencode days [plan] — Generate a Premium code\n/grant chatId plan — Activate Premium directly\n/broadcast — Open the private broadcast panel\n/botstats — Global statistics\n/chats — List of active groups\n/gban /ungban — Global bans\n/leave chatId — Leave a group\n/setowner chatId userId — Change owner"
   },
   "pt": {
     "Esta nota ya no está disponible.": "Esta nota já não está disponível.",
@@ -1232,7 +1238,6 @@
     "⚠️ Uso: <code>/setowner -1001234567890 123456789</code>": "⚠️ Uso: <code>/setowner -1001234567890 123456789</code>",
     "⚠️ Ese grupo no está registrado.": "⚠️ Esse grupo não está registrado.",
     "✅ Propietario de <b>{0}</b> establecido en <code>{1}</code>.": "✅ Proprietário de <b>{0}</b> definido como <code>{1}</code>.",
-    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast texto — Envía un mensaje a todos los grupos\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Comandos de proprietário</b>\n\n/gencode dias [plano] — Gera um código Premium\n/grant chatId plano — Ativa Premium diretamente\n/broadcast texto — Envia uma mensagem para todos os grupos\n/botstats — Estatísticas globais\n/chats — Lista de grupos ativos\n/gban /ungban — Banimentos globais\n/leave chatId — Sair de um grupo\n/setowner chatId userId — Alterar proprietário",
     "⚠️ Ese grupo no está registrado en el bot. Añádeme al grupo y vuelve a intentarlo.": "⚠️ Esse grupo não está registrado no bot. Adicione-me ao grupo e tente novamente.",
     "🛡️ Solo los administradores del grupo pueden gestionar Premium.": "🛡️ Apenas administradores do grupo podem gerenciar o Premium.",
     "⚙️ Consulta la configuración de tu cuenta desde /panel.": "⚙️ Consulte as configurações da sua conta em /panel.",
@@ -1919,7 +1924,14 @@
     "Calidad de reglas": "Qualidade das regras",
     "Deshacer sanciones requiere Pro o Ultra.": "Desfazer sanções requer Pro ou Ultra.",
     "Calidad de reglas requiere Ultra.": "A qualidade das regras requer Ultra.",
-    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "Escolha o grupo em /panel e abra a ferramenta em Configurações ou Moderação."
+    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "Escolha o grupo em /panel e abra a ferramenta em Configurações ou Moderação.",
+    "Grupo oficial": "Grupo oficial",
+    "Canal oficial": "Canal oficial",
+    "🌐 Web y planes": "🌐 Site e planos",
+    "Prepara y revisa la difusión desde el panel antes de enviarla.": "Prepare e revise a divulgação no painel antes de enviá-la.",
+    "📣 Difusión": "📣 Divulgação",
+    "✉️ Contacto": "✉️ Contato",
+    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast — Abre el panel de difusión privada\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Comandos de proprietário</b>\n\n/gencode dias [plano] — Gera um código Premium\n/grant chatId plano — Ativa Premium diretamente\n/broadcast — Abre o painel de difusão privada\n/botstats — Estatísticas globais\n/chats — Lista de grupos ativos\n/gban /ungban — Banimentos globais\n/leave chatId — Sair de um grupo\n/setowner chatId userId — Alterar proprietário"
   },
   "fr": {
     "Esta nota ya no está disponible.": "Cette note n'est plus disponible.",
@@ -2193,7 +2205,6 @@
     "⚠️ Uso: <code>/setowner -1001234567890 123456789</code>": "⚠️ Utilisation : <code>/setowner -1001234567890 123456789</code>",
     "⚠️ Ese grupo no está registrado.": "⚠️ Ce groupe n'est pas enregistré.",
     "✅ Propietario de <b>{0}</b> establecido en <code>{1}</code>.": "✅ Propriétaire de <b>{0}</b> défini sur <code>{1}</code>.",
-    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast texto — Envía un mensaje a todos los grupos\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Commandes du propriétaire</b>\n\n/gencode jours [plan] — Génère un code Premium\n/grant chatId plan — Active Premium directement\n/broadcast texte — Envoie un message à tous les groupes\n/botstats — Statistiques globales\n/chats — Liste des groupes actifs\n/gban /ungban — Bannissements globaux\n/leave chatId — Quitter un groupe\n/setowner chatId userId — Changer le propriétaire",
     "⚠️ Ese grupo no está registrado en el bot. Añádeme al grupo y vuelve a intentarlo.": "⚠️ Ce groupe n'est pas enregistré dans le bot. Ajoutez-moi au groupe et réessayez.",
     "🛡️ Solo los administradores del grupo pueden gestionar Premium.": "🛡️ Seuls les administrateurs du groupe peuvent gérer le Premium.",
     "⚙️ Consulta la configuración de tu cuenta desde /panel.": "⚙️ Consultez les paramètres de votre compte depuis /panel.",
@@ -2880,7 +2891,14 @@
     "Calidad de reglas": "Qualité des règles",
     "Deshacer sanciones requiere Pro o Ultra.": "L’annulation des sanctions nécessite Pro ou Ultra.",
     "Calidad de reglas requiere Ultra.": "La qualité des règles nécessite Ultra.",
-    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "Choisissez le groupe dans /panel et ouvrez l’outil dans Paramètres ou Modération."
+    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "Choisissez le groupe dans /panel et ouvrez l’outil dans Paramètres ou Modération.",
+    "Grupo oficial": "Groupe officiel",
+    "Canal oficial": "Canal officiel",
+    "🌐 Web y planes": "🌐 Site et offres",
+    "Prepara y revisa la difusión desde el panel antes de enviarla.": "Préparez et vérifiez la diffusion dans le panneau avant de l’envoyer.",
+    "📣 Difusión": "📣 Diffusion",
+    "✉️ Contacto": "✉️ Contact",
+    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast — Abre el panel de difusión privada\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Commandes du propriétaire</b>\n\n/gencode jours [plan] — Génère un code Premium\n/grant chatId plan — Active Premium directement\n/broadcast — Ouvre le panneau de diffusion privée\n/botstats — Statistiques globales\n/chats — Liste des groupes actifs\n/gban /ungban — Bannissements globaux\n/leave chatId — Quitter un groupe\n/setowner chatId userId — Changer le propriétaire"
   },
   "de": {
     "Esta nota ya no está disponible.": "Diese Notiz ist nicht mehr verfügbar.",
@@ -3154,7 +3172,6 @@
     "⚠️ Uso: <code>/setowner -1001234567890 123456789</code>": "⚠️ Nutzung: <code>/setowner -1001234567890 123456789</code>",
     "⚠️ Ese grupo no está registrado.": "⚠️ Diese Gruppe ist nicht registriert.",
     "✅ Propietario de <b>{0}</b> establecido en <code>{1}</code>.": "✅ Eigentümer von <b>{0}</b> auf <code>{1}</code> gesetzt.",
-    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast texto — Envía un mensaje a todos los grupos\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Besitzerbefehle</b>\n\n/gencode Tage [Plan] — Generiert einen Premium-Code\n/grant chatId Plan — Aktiviert Premium direkt\n/broadcast Text — Sendet eine Nachricht an alle Gruppen\n/botstats — Globale Statistiken\n/chats — Liste aktiver Gruppen\n/gban /ungban — Globale Banns\n/leave chatId — Gruppe verlassen\n/setowner chatId userId — Besitzer wechseln",
     "⚠️ Ese grupo no está registrado en el bot. Añádeme al grupo y vuelve a intentarlo.": "⚠️ Diese Gruppe ist nicht im Bot registriert. Füge mich zur Gruppe hinzu und versuche es erneut.",
     "🛡️ Solo los administradores del grupo pueden gestionar Premium.": "🛡️ Nur Gruppenadministratoren können Premium verwalten.",
     "⚙️ Consulta la configuración de tu cuenta desde /panel.": "⚙️ Sieh dir die Kontoeinstellungen über /panel an.",
@@ -3841,7 +3858,14 @@
     "Calidad de reglas": "Regelqualität",
     "Deshacer sanciones requiere Pro o Ultra.": "Das Rückgängigmachen von Sanktionen erfordert Pro oder Ultra.",
     "Calidad de reglas requiere Ultra.": "Die Regelqualität erfordert Ultra.",
-    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "Wähle die Gruppe über /panel und öffne das Werkzeug in Einstellungen oder Moderation."
+    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "Wähle die Gruppe über /panel und öffne das Werkzeug in Einstellungen oder Moderation.",
+    "Grupo oficial": "Offizielle Gruppe",
+    "Canal oficial": "Offizieller Kanal",
+    "🌐 Web y planes": "🌐 Website und Tarife",
+    "Prepara y revisa la difusión desde el panel antes de enviarla.": "Bereite die Rundnachricht im Panel vor und prüfe sie, bevor du sie sendest.",
+    "📣 Difusión": "📣 Rundnachricht",
+    "✉️ Contacto": "✉️ Kontakt",
+    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast — Abre el panel de difusión privada\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Besitzerbefehle</b>\n\n/gencode Tage [Plan] — Generiert einen Premium-Code\n/grant chatId Plan — Aktiviert Premium direkt\n/broadcast — Öffnet das Panel für private Rundsendungen\n/botstats — Globale Statistiken\n/chats — Liste aktiver Gruppen\n/gban /ungban — Globale Banns\n/leave chatId — Gruppe verlassen\n/setowner chatId userId — Besitzer wechseln"
   },
   "it": {
     "Esta nota ya no está disponible.": "Questa nota non è più disponibile.",
@@ -4115,7 +4139,6 @@
     "⚠️ Uso: <code>/setowner -1001234567890 123456789</code>": "⚠️ Uso: <code>/setowner -1001234567890 123456789</code>",
     "⚠️ Ese grupo no está registrado.": "⚠️ Quel gruppo non è registrato.",
     "✅ Propietario de <b>{0}</b> establecido en <code>{1}</code>.": "✅ Proprietario di <b>{0}</b> impostato su <code>{1}</code>.",
-    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast texto — Envía un mensaje a todos los grupos\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Comandi del proprietario</b>\n\n/gencode giorni [piano] — Genera un codice Premium\n/grant chatId piano — Attiva Premium direttamente\n/broadcast testo — Invia un messaggio a tutti i gruppi\n/botstats — Statistiche globali\n/chats — Lista dei gruppi attivi\n/gban /ungban — Ban globali\n/leave chatId — Uscire da un gruppo\n/setowner chatId userId — Cambiare proprietario",
     "⚠️ Ese grupo no está registrado en el bot. Añádeme al grupo y vuelve a intentarlo.": "⚠️ Questo gruppo non è registrato nel bot. Aggiungimi al gruppo e riprova.",
     "🛡️ Solo los administradores del grupo pueden gestionar Premium.": "🛡️ Solo gli amministratori del gruppo possono gestire Premium.",
     "⚙️ Consulta la configuración de tu cuenta desde /panel.": "⚙️ Consulta le impostazioni del tuo account da /panel.",
@@ -4802,7 +4825,14 @@
     "Calidad de reglas": "Qualità delle regole",
     "Deshacer sanciones requiere Pro o Ultra.": "Per annullare le sanzioni occorre Pro o Ultra.",
     "Calidad de reglas requiere Ultra.": "La qualità delle regole richiede Ultra.",
-    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "Scegli il gruppo da /panel e apri lo strumento in Impostazioni o Moderazione."
+    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "Scegli il gruppo da /panel e apri lo strumento in Impostazioni o Moderazione.",
+    "Grupo oficial": "Gruppo ufficiale",
+    "Canal oficial": "Canale ufficiale",
+    "🌐 Web y planes": "🌐 Sito e piani",
+    "Prepara y revisa la difusión desde el panel antes de enviarla.": "Prepara e controlla la diffusione nel pannello prima di inviarla.",
+    "📣 Difusión": "📣 Diffusione",
+    "✉️ Contacto": "✉️ Contatti",
+    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast — Abre el panel de difusión privada\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Comandi del proprietario</b>\n\n/gencode giorni [piano] — Genera un codice Premium\n/grant chatId piano — Attiva Premium direttamente\n/broadcast — Apre il pannello di invio privato\n/botstats — Statistiche globali\n/chats — Lista dei gruppi attivi\n/gban /ungban — Ban globali\n/leave chatId — Uscire da un gruppo\n/setowner chatId userId — Cambiare proprietario"
   },
   "ru": {
     "Esta nota ya no está disponible.": "Эта заметка больше недоступна.",
@@ -5076,7 +5106,6 @@
     "⚠️ Uso: <code>/setowner -1001234567890 123456789</code>": "⚠️ Использование: <code>/setowner -1001234567890 123456789</code>",
     "⚠️ Ese grupo no está registrado.": "⚠️ Эта группа не зарегистрирована.",
     "✅ Propietario de <b>{0}</b> establecido en <code>{1}</code>.": "✅ Владелец <b>{0}</b> установлен на <code>{1}</code>.",
-    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast texto — Envía un mensaje a todos los grupos\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Команды владельца</b>\n\n/gencode дней [план] — Генерирует Premium‑код\n/grant chatId план — Активирует Premium напрямую\n/broadcast текст — Отправляет сообщение во все группы\n/botstats — Глобальная статистика\n/chats — Список активных групп\n/gban /ungban — Глобальные баны\n/leave chatId — Покинуть группу\n/setowner chatId userId — Сменить владельца",
     "⚠️ Ese grupo no está registrado en el bot. Añádeme al grupo y vuelve a intentarlo.": "⚠️ Эта группа не зарегистрирована в боте. Добавьте меня в группу и попробуйте снова.",
     "🛡️ Solo los administradores del grupo pueden gestionar Premium.": "🛡️ Только администраторы группы могут управлять Premium.",
     "⚙️ Consulta la configuración de tu cuenta desde /panel.": "⚙️ Просмотрите настройки аккаунта через /panel.",
@@ -5763,7 +5792,14 @@
     "Calidad de reglas": "Качество правил",
     "Deshacer sanciones requiere Pro o Ultra.": "Для отмены санкций нужен Pro или Ultra.",
     "Calidad de reglas requiere Ultra.": "Для оценки качества правил нужен Ultra.",
-    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "Выберите группу через /panel и откройте инструмент в настройках или разделе модерации."
+    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "Выберите группу через /panel и откройте инструмент в настройках или разделе модерации.",
+    "Grupo oficial": "Официальная группа",
+    "Canal oficial": "Официальный канал",
+    "🌐 Web y planes": "🌐 Сайт и тарифы",
+    "Prepara y revisa la difusión desde el panel antes de enviarla.": "Подготовьте и проверьте рассылку в панели перед отправкой.",
+    "📣 Difusión": "📣 Рассылка",
+    "✉️ Contacto": "✉️ Связаться",
+    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast — Abre el panel de difusión privada\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Команды владельца</b>\n\n/gencode дней [план] — Генерирует Premium‑код\n/grant chatId план — Активирует Premium напрямую\n/broadcast — Открывает панель личной рассылки\n/botstats — Глобальная статистика\n/chats — Список активных групп\n/gban /ungban — Глобальные баны\n/leave chatId — Покинуть группу\n/setowner chatId userId — Сменить владельца"
   },
   "tr": {
     "Esta nota ya no está disponible.": "Bu not artık mevcut değil.",
@@ -6037,7 +6073,6 @@
     "⚠️ Uso: <code>/setowner -1001234567890 123456789</code>": "⚠️ Kullanım: <code>/setowner -1001234567890 123456789</code>",
     "⚠️ Ese grupo no está registrado.": "⚠️ Bu grup kayıtlı değil.",
     "✅ Propietario de <b>{0}</b> establecido en <code>{1}</code>.": "✅ <b>{0}</b> sahibi <code>{1}</code> olarak belirlendi.",
-    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast texto — Envía un mensaje a todos los grupos\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Yönetici Komutları</b>\n\n/gencode gün [plan] — Premium kodu oluştur\n/grant chatId plan — Premium'u doğrudan etkinleştir\n/broadcast metin — Tüm gruplara mesaj gönder\n/botstats — Küresel istatistikler\n/chats — Aktif grup listesi\n/gban /ungban — Küresel yasaklamalar\n/leave chatId — Bir gruptan çık\n/setowner chatId userId — Yönetici değiştir",
     "⚠️ Ese grupo no está registrado en el bot. Añádeme al grupo y vuelve a intentarlo.": "⚠️ Bu grup botta kayıtlı değil. Beni gruba ekle ve tekrar dene.",
     "🛡️ Solo los administradores del grupo pueden gestionar Premium.": "🛡️ Premium yönetimi yalnızca grup yöneticileri tarafından yapılabilir.",
     "⚙️ Consulta la configuración de tu cuenta desde /panel.": "⚙️ Hesap ayarlarını /panel üzerinden kontrol et.",
@@ -6724,7 +6759,14 @@
     "Calidad de reglas": "Kural kalitesi",
     "Deshacer sanciones requiere Pro o Ultra.": "Yaptırımları geri almak için Pro veya Ultra gerekir.",
     "Calidad de reglas requiere Ultra.": "Kural kalitesi için Ultra gerekir.",
-    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "/panel üzerinden grubu seçin ve aracı Ayarlar veya Moderasyon bölümünde açın."
+    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "/panel üzerinden grubu seçin ve aracı Ayarlar veya Moderasyon bölümünde açın.",
+    "Grupo oficial": "Resmî grup",
+    "Canal oficial": "Resmî kanal",
+    "🌐 Web y planes": "🌐 Site ve planlar",
+    "Prepara y revisa la difusión desde el panel antes de enviarla.": "Toplu mesajı göndermeden önce panelde hazırlayıp gözden geçirin.",
+    "📣 Difusión": "📣 Toplu mesaj",
+    "✉️ Contacto": "✉️ İletişim",
+    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast — Abre el panel de difusión privada\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>Yönetici Komutları</b>\n\n/gencode gün [plan] — Premium kodu oluştur\n/grant chatId plan — Premium'u doğrudan etkinleştir\n/broadcast — Özel yayın panelini açar\n/botstats — Küresel istatistikler\n/chats — Aktif grup listesi\n/gban /ungban — Küresel yasaklamalar\n/leave chatId — Bir gruptan çık\n/setowner chatId userId — Yönetici değiştir"
   },
   "ar": {
     "Esta nota ya no está disponible.": "هذه الملاحظة لم تعد متاحة.",
@@ -6998,7 +7040,6 @@
     "⚠️ Uso: <code>/setowner -1001234567890 123456789</code>": "⚠️ الاستخدام: <code>/setowner -1001234567890 123456789</code>",
     "⚠️ Ese grupo no está registrado.": "⚠️ هذه المجموعة غير مسجلة.",
     "✅ Propietario de <b>{0}</b> establecido en <code>{1}</code>.": "✅ تم تعيين مالك <b>{0}</b> إلى <code>{1}</code>.",
-    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast texto — Envía un mensaje a todos los grupos\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>أوامر المالك</b>\n\n/gencode أيام [plan] — إنشاء رمز بريميوم\n/grant chatId plan — تفعيل بريميوم مباشرة\n/broadcast نص — إرسال رسالة إلى جميع المجموعات\n/botstats — إحصائيات عالمية\n/chats — قائمة المجموعات النشطة\n/gban /ungban — حظر عالمي\n/leave chatId — الخروج من مجموعة\n/setowner chatId userId — تغيير المالك",
     "⚠️ Ese grupo no está registrado en el bot. Añádeme al grupo y vuelve a intentarlo.": "⚠️ هذا المجموعة غير مسجلة في البوت. أضفني إلى المجموعة ثم حاول مرة أخرى.",
     "🛡️ Solo los administradores del grupo pueden gestionar Premium.": "🛡️ فقط مديري المجموعة يمكنهم إدارة البريميوم.",
     "⚙️ Consulta la configuración de tu cuenta desde /panel.": "⚙️ راجع إعدادات حسابك من /panel.",
@@ -7685,7 +7726,14 @@
     "Calidad de reglas": "جودة القواعد",
     "Deshacer sanciones requiere Pro o Ultra.": "يتطلب التراجع عن العقوبات Pro أو Ultra.",
     "Calidad de reglas requiere Ultra.": "تتطلب جودة القواعد Ultra.",
-    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "اختر المجموعة من /panel وافتح الأداة في الإعدادات أو الإشراف."
+    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "اختر المجموعة من /panel وافتح الأداة في الإعدادات أو الإشراف.",
+    "Grupo oficial": "المجموعة الرسمية",
+    "Canal oficial": "القناة الرسمية",
+    "🌐 Web y planes": "🌐 الموقع والخطط",
+    "Prepara y revisa la difusión desde el panel antes de enviarla.": "حضّر الرسالة الجماعية وراجعها في اللوحة قبل إرسالها.",
+    "📣 Difusión": "📣 رسالة جماعية",
+    "✉️ Contacto": "✉️ تواصل",
+    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast — Abre el panel de difusión privada\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>أوامر المالك</b>\n\n/gencode أيام [plan] — إنشاء رمز بريميوم\n/grant chatId plan — تفعيل بريميوم مباشرة\n/broadcast — يفتح لوحة البث الخاص\n/botstats — إحصائيات عالمية\n/chats — قائمة المجموعات النشطة\n/gban /ungban — حظر عالمي\n/leave chatId — الخروج من مجموعة\n/setowner chatId userId — تغيير المالك"
   },
   "zh": {
     "Esta nota ya no está disponible.": "此笔记已不再可用。",
@@ -7959,7 +8007,6 @@
     "⚠️ Uso: <code>/setowner -1001234567890 123456789</code>": "⚠️ 用法：<code>/setowner -1001234567890 123456789</code>",
     "⚠️ Ese grupo no está registrado.": "⚠️ 此群组未注册。",
     "✅ Propietario de <b>{0}</b> establecido en <code>{1}</code>.": "✅ 已将 <b>{0}</b> 的所有者设置为 <code>{1}</code>.",
-    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast texto — Envía un mensaje a todos los grupos\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>管理员命令</b>\n\n/gencode 天 [plan] — 生成 Premium 码\n/grant chatId plan — 直接激活 Premium\n/broadcast 文本 — 向所有群组发送消息\n/botstats — 全球统计\n/chats — 活跃群组列表\n/gban /ungban — 全球封禁\n/leave chatId — 退出群组\n/setowner chatId userId — 更改管理员",
     "⚠️ Ese grupo no está registrado en el bot. Añádeme al grupo y vuelve a intentarlo.": "⚠️ 该群组未在机器人中注册。将我添加到群组后再试一次。",
     "🛡️ Solo los administradores del grupo pueden gestionar Premium.": "🛡️ 仅群组管理员可管理 Premium。",
     "⚙️ Consulta la configuración de tu cuenta desde /panel.": "⚙️ 从 /panel 查看你的账户设置。",
@@ -8646,6 +8693,13 @@
     "Calidad de reglas": "规则质量",
     "Deshacer sanciones requiere Pro o Ultra.": "撤销处罚需要 Pro 或 Ultra。",
     "Calidad de reglas requiere Ultra.": "规则质量需要 Ultra。",
-    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "通过 /panel 选择群组，然后在设置或管理中打开工具。"
+    "Elige el grupo desde /panel y abre la herramienta en Ajustes o Moderación.": "通过 /panel 选择群组，然后在设置或管理中打开工具。",
+    "Grupo oficial": "官方群组",
+    "Canal oficial": "官方频道",
+    "🌐 Web y planes": "🌐 网站和套餐",
+    "Prepara y revisa la difusión desde el panel antes de enviarla.": "发送前，请在面板中准备并检查群发消息。",
+    "📣 Difusión": "📣 群发消息",
+    "✉️ Contacto": "✉️ 联系我们",
+    "👑 <b>Comandos de propietario</b>\n\n/gencode días [plan] — Genera un código Premium\n/grant chatId plan — Activa Premium directamente\n/broadcast — Abre el panel de difusión privada\n/botstats — Estadísticas globales\n/chats — Lista de grupos activos\n/gban /ungban — Baneos globales\n/leave chatId — Salir de un grupo\n/setowner chatId userId — Cambiar propietario": "👑 <b>管理员命令</b>\n\n/gencode 天 [plan] — 生成 Premium 码\n/grant chatId plan — 直接激活 Premium\n/broadcast — 打开私信群发面板\n/botstats — 全球统计\n/chats — 活跃群组列表\n/gban /ungban — 全球封禁\n/leave chatId — 退出群组\n/setowner chatId userId — 更改管理员"
   }
 }

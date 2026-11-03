@@ -32,7 +32,7 @@ export async function upsertUser(input: UserUpsertInput): Promise<UserRow> {
        username = EXCLUDED.username,
        first_name = EXCLUDED.first_name,
        last_name = EXCLUDED.last_name,
-       language_code = EXCLUDED.language_code,
+       language_code = COALESCE(EXCLUDED.language_code, users.language_code),
        is_bot = EXCLUDED.is_bot,
        last_seen_at = now()
      RETURNING *`,
