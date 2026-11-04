@@ -16,7 +16,7 @@
     filters:{title:'Respuestas por frases',description:'Activa las respuestas creadas en Contenido avanzado. Cada una tiene un intervalo mínimo.',fields:[['enabled','Activar respuestas','check']]},
     topics:{title:'Temas y destinos',description:'Usa 0 para el destino general. Para obtener un ID, ejecuta /id dentro del tema.',fields:[['welcomeThreadId','Tema de bienvenida','number',0,2147483647],['logThreadId','Tema en el canal o grupo de registros','number',0,2147483647]]},
     silent:{title:'Moderación silenciosa',description:'Suprime avisos automáticos públicos y conserva registros. Requiere un destino de registros configurado y accesible.',fields:[['enabled','Activar avisos silenciosos','check']]},
-    joinGate:{title:'Verificación antes de ingresar',description:'Envía un desafío privado asociado a una solicitud de ingreso. Si no se entrega o vence, un administrador revisa la solicitud.',fields:[['enabled','Activar captcha previo','check'],['mode','Modo','select',['button','math']]]},
+    joinGate:{title:'Verificación antes de ingresar',description:'Telegram abre el portal si GBot está asignado como bot guardián. En solicitudes normales, GBot envía el desafío por privado.',fields:[['enabled','Activar captcha previo','check'],['mode','Modo','select',['button','math']]]},
     richNotes:{title:'Notas enriquecidas',description:'Permite texto, multimedia, botones y entrega privada. Guarda un medio respondiendo con /saverich nombre en Telegram.',fields:[['enabled','Activar notas enriquecidas','check']]},
     observation:{title:'Modo de observación',description:'Registra lo que harían las reglas automáticas sin ejecutar sus sanciones. Los baneos globales existentes mantienen su política.',fields:[['enabled','Observar sin sancionar','check']]},
   };
@@ -99,7 +99,22 @@
       if(type==='days')return `<fieldset><legend>${label}</legend>${['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'].map((title,n)=>check(name,title,s[name].includes(n),n)).join('')}</fieldset>`;
       return field(label,type==='select'?select(name,min,s[name]):input(name,type,s[name],type==='number'?`min="${min}" max="${max}" required`: 'required'));
     }).join('');
-    sheet(def.title,`<p>${esc(def.description)}</p><form data-form="advanced-settings" data-section="${key}">${fields}<div class="sheet-actions"><button class="btn btn-primary" type="submit">Guardar configuración</button>${button('Volver','advanced-home')}</div></form>${key==='raid'?`<div class="card"><p>Estado temporal: ${session.data.raid?'activo hasta '+esc(G.fmtDateTime(session.data.raid.until_at)):'inactivo'}</p>${button('Activar ahora','advanced-raid','data-seconds="900"')}${button('Desactivar temporal','advanced-raid','data-seconds="0"')}</div>`:''}`);
+    sheet(def.title,`<p>${esc(def.description)}</p><form data-form="advanced-settings" data-section="${key}">${fields}<div class="sheet-actions"><button class="btn btn-primary" type="submit">Guardar configuración</button>${button('Volver','advanced-home')}</div></form>${key==='raid'?`<div class="card"><p>Estado temporal: ${session.data.raid?'activo hasta '+esc(G.fmtDateTime(session.data.raid.until_at)):'inactivo'}</p>${button('Activar ahora','advanced-raid','data-seconds="900"')}${button('Desactivar temporal','advanced-raid','data-seconds="0"')}</div>`:''}${key==='joinGate'?'<div class="card"><p>Habilita las solicitudes de ingreso y asigna GBot como bot guardián desde los ajustes del grupo en Telegram.</p>'+button('Comprobar portal','advanced-join-guard')+'<p id="adv-guard-status" aria-live="polite"></p></div>':''}`);
+  });
+  G.registerAction('advanced-join-guard',async()=>{
+    if(!current()||!gate('joinGate'))return;
+    const output=document.getElementById('adv-guard-status');
+    if(!output)return;
+    output.textContent='Comprobando en Telegram…';
+    try{
+      const result=await G.api.get('/api/advanced/join-guard?chat_id='+session.chatId);
+      if(!output.isConnected)return;
+      output.textContent=[
+        result.supported?'Bot habilitado para el portal.':'Falta habilitar las consultas de ingreso del bot en BotFather.',
+        result.assigned?'GBot es el bot guardián de este grupo.':'Falta asignar GBot como bot guardián del grupo.',
+        result.canInvite?'Permiso para gestionar ingresos confirmado.':'Falta el permiso de administrador para invitar usuarios.',
+      ].join(' ');
+    }catch{if(output.isConnected)output.textContent='No se pudo comprobar en Telegram. Inténtalo de nuevo.';}
   });
   G.registerForm('advanced-settings',async f=>{
     if(!current())return;const key=f.dataset.section,d=new FormData(f),settings=structuredClone(session.data.settings);
@@ -349,6 +364,7 @@
       if(route===''&&method==='GET')return structuredClone({ok:true,...d});
       if(route===''&&method==='PATCH'){if(body.version!==d.version)throw new Error('Recarga la configuración de ejemplo.');d.settings=structuredClone(body.settings);d.version++;d.history.unshift({version:d.version,actor_id:123,created_at:new Date().toISOString(),settings:structuredClone(d.settings)});return {ok:true,...structuredClone(d)};}
       if(route==='/reactions')return {ok:true,demo:true};
+      if(route==='/join-guard')return {ok:true,supported:true,assigned:false,canInvite:true,demo:true};
       if(route==='/invites')return {ok:true,invites:[],demo:true};
       if(route==='/delegates')return {ok:true,roles:[],demo:true};
       if(route==='/bulk')return body.action==='preview'?{ok:true,items:body.input.userIds.map(userId=>({userId,name:'Ejemplo',allowed:true})),token:'demo'}:{ok:true,items:[],demo:true};

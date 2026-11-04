@@ -20,6 +20,8 @@ import { escapeHtml } from '../utils/format.js';
 import { getChatMemberSafe, isAdminStatus } from '../utils/telegram.js';
 import { onceOperation } from './operations.js';
 import { logger } from '../logger.js';
+import { expireNativeJoins } from './native-join.js';
+import { primaryBot } from './bot-runtime.js';
 export const advancedDataCache=new ReadCache(2000);
 export async function runtimeAdvanced(chat:ChatRow):Promise<AdvancedSettings>{const c=await advancedConfig(chat.chat_id);return effectiveAdvanced(chat,c.settings,c.actorId);}
 export async function scopeExemptions(chat:ChatRow,userId:number):Promise<string[]>{
@@ -164,7 +166,7 @@ export async function beginJoinGate(api:Api,chat:ChatRow,request:ChatJoinRequest
  const a=await runtimeAdvanced(chat);if(!a.joinGate.enabled)return false;
  if((await scopeExemptions(chat,request.from.id)).includes('captcha')){await api.approveChatJoinRequest(chat.chat_id,request.from.id);return true;}
  const token=randomBytes(12).toString('hex');const x=randomInt(2,10),y=randomInt(2,10),answer=a.joinGate.mode==='math'?String(x+y):'ok';
- await query("INSERT INTO join_challenges(token,chat_id,user_id,user_chat_id,answer,expires_at) VALUES($1,$2,$3,$4,$5,now()+interval '4 minutes') ON CONFLICT(chat_id,user_id) DO UPDATE SET token=EXCLUDED.token,user_chat_id=EXCLUDED.user_chat_id,answer=EXCLUDED.answer,expires_at=EXCLUDED.expires_at,attempts=0,state='pending'",[token,chat.chat_id,request.from.id,request.user_chat_id,answer]);
+ await query("INSERT INTO join_challenges(token,chat_id,user_id,user_chat_id,answer,expires_at) VALUES($1,$2,$3,$4,$5,now()+interval '4 minutes') ON CONFLICT(chat_id,user_id) DO UPDATE SET token=EXCLUDED.token,user_chat_id=EXCLUDED.user_chat_id,answer=EXCLUDED.answer,expires_at=EXCLUDED.expires_at,attempts=0,state='pending',native_query=NULL,native_bot_id=NULL,native_request_id=NULL,native_prompt=NULL",[token,chat.chat_id,request.from.id,request.user_chat_id,answer]);
  const keyboard=new InlineKeyboard();if(answer==='ok')keyboard.text(tr("Verificar y solicitar ingreso"),`jg:${token}:ok`);else for(const value of [x+y-1,x+y,x+y+2].sort(()=>Math.random()-.5))keyboard.text(String(value),`jg:${token}:${value}`);
  try{await api.sendMessage(request.user_chat_id,tr("🔐 Verificación para {0}\n{1}\nVálida durante 4 minutos.", [chat.title,answer==='ok'?tr("Pulsa el botón para continuar."):tr("Resuelve: {0} + {1}", [x,y])]),{reply_markup:keyboard});}
  catch(error){logger.warn({chatId:chat.chat_id,err:error},tr("No se pudo entregar captcha de solicitud; queda para revisión manual"));await query("UPDATE join_challenges SET state='delivery_failed' WHERE token=$1",[token]);}
@@ -173,7 +175,7 @@ export async function beginJoinGate(api:Api,chat:ChatRow,request:ChatJoinRequest
 export async function verifyJoinGate(api:Api,token:string,userId:number,value:string):Promise<string>{
  return withTransaction(async c=>{
   const r=(await c.query("SELECT * FROM join_challenges WHERE token=$1 FOR UPDATE",[token])).rows[0];
-  if(!r||r.user_id!==userId||r.state!=='pending'||new Date(r.expires_at).getTime()<Date.now())return tr("La verificación venció o ya fue utilizada. Solicita acceso nuevamente.");
+  if(!r||r.native_bot_id||r.user_id!==userId||r.state!=='pending'||new Date(r.expires_at).getTime()<Date.now())return tr("La verificación venció o ya fue utilizada. Solicita acceso nuevamente.");
   const chat=await getChat(r.chat_id);if(!chat||!(await runtimeAdvanced(chat)).joinGate.enabled)return tr("La protección cambió. Un administrador debe revisar tu solicitud.");
   if(r.answer!==value){await c.query("UPDATE join_challenges SET attempts=attempts+1,state=CASE WHEN attempts>=2 THEN 'failed' ELSE state END WHERE token=$1",[token]);return r.attempts>=2?tr("No quedan intentos. Tu solicitud requiere revisión manual."):tr("Respuesta incorrecta. Intenta de nuevo.");}
   // Mark before the external call; an uncertain response must not trigger a second approval.
@@ -188,7 +190,9 @@ export async function runAdvancedSchedules(api:Api):Promise<void>{
  await query("DELETE FROM raid_joins WHERE joined_at<now()-interval '10 minutes'");
  await query("DELETE FROM group_invites WHERE expires_at<now() OR revoked_at<now()-interval '1 day'");
  await query("DELETE FROM delegated_roles WHERE expires_at<now()");
- await query("UPDATE join_challenges SET state='expired' WHERE state='pending' AND expires_at<now()");
+ const primary=primaryBot();
+ if(primary)await expireNativeJoins({api,id:primary.botInfo.id});
+ await query("UPDATE join_challenges SET state='expired' WHERE state='pending' AND native_bot_id IS NULL AND expires_at<now()");
  await query("DELETE FROM join_challenges WHERE expires_at<now()-interval '7 days'");
  await query("DELETE FROM operation_receipts WHERE state='done' AND completed_at<now()-interval '30 days'");
  await query("DELETE FROM update_receipts WHERE created_at<now()-interval '7 days'");

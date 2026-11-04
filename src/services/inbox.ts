@@ -15,11 +15,13 @@ export async function rememberReport(chatId:number,reporterId:number,messageId:n
  await query('INSERT INTO member_reports(chat_id,reporter_id,message_id,target_id,excerpt) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',[chatId,reporterId,messageId,targetId??null,clean??null]);
 }
 export async function rememberJoin(request:ChatJoinRequest){
- await query("INSERT INTO pending_joins(chat_id,user_id,request_id,first_name,username) VALUES($1,$2,$3,$4,$5) ON CONFLICT(chat_id,user_id) DO UPDATE SET request_id=EXCLUDED.request_id,first_name=EXCLUDED.first_name,username=EXCLUDED.username,state='pending',requested_at=now(),resolved_at=null,resolved_by=null",[request.chat.id,request.from.id,randomUUID(),request.from.first_name,request.from.username??null]);
+ const requestId=randomUUID();
+ await query("INSERT INTO pending_joins(chat_id,user_id,request_id,first_name,username) VALUES($1,$2,$3,$4,$5) ON CONFLICT(chat_id,user_id) DO UPDATE SET request_id=EXCLUDED.request_id,first_name=EXCLUDED.first_name,username=EXCLUDED.username,state='pending',requested_at=now(),resolved_at=null,resolved_by=null",[request.chat.id,request.from.id,requestId,request.from.first_name,request.from.username??null]);
+ return requestId;
 }
 export async function finishJoin(chatId:number,userId:number,state='approved',actorId?:number){
  await query("UPDATE pending_joins SET state=$3,resolved_at=now(),resolved_by=$4 WHERE chat_id=$1 AND user_id=$2 AND state IN ('pending','processing','uncertain')",[chatId,userId,state,actorId??null]);
- await query("UPDATE join_challenges SET state=$3 WHERE chat_id=$1 AND user_id=$2 AND state IN ('pending','approving','manual_review','delivery_failed','failed','expired')",[chatId,userId,state]);
+ await query("UPDATE join_challenges SET state=$3,native_query=NULL WHERE chat_id=$1 AND user_id=$2 AND state IN ('pending','approving','manual_review','delivery_failed','failed','expired','native_uncertain')",[chatId,userId,state]);
 }
 const sourceSql=`WITH source AS (
  SELECT chat_id,'report'::text AS kind,id::text AS source_ref,'Reporte de un miembro'::text AS title,
@@ -31,10 +33,11 @@ const sourceSql=`WITH source AS (
      WHEN 'failed' THEN ' · Intentos de verificación agotados'
      WHEN 'expired' THEN ' · Verificación vencida'
      WHEN 'delivery_failed' THEN ' · Telegram no pudo entregar el desafío'
-     WHEN 'manual_review' THEN ' · Verificación correcta, falta aprobar el ingreso'
+     WHEN 'manual_review' THEN ' · Falta revisión de un administrador'
+     WHEN 'native_uncertain' THEN ' · Comprueba en Telegram si la solicitud ya fue resuelta'
      ELSE '' END,
    p.user_id,NULL::bigint,p.requested_at,CASE WHEN p.state IN ('approved','declined') THEN 'resolved' WHEN p.state='uncertain' THEN 'uncertain' ELSE 'open' END,
-   md5(p.request_id::text||p.state) FROM pending_joins p LEFT JOIN join_challenges j ON j.chat_id=p.chat_id AND j.user_id=p.user_id WHERE p.chat_id=ANY($1::bigint[])
+   md5(p.request_id::text||p.state||COALESCE(j.state,'')) FROM pending_joins p LEFT JOIN join_challenges j ON j.chat_id=p.chat_id AND j.user_id=p.user_id AND (j.native_request_id IS NULL OR j.native_request_id=p.request_id) WHERE p.chat_id=ANY($1::bigint[])
  UNION ALL
  SELECT chat_id,'visual',id::text,'Revisión de fotografía',COALESCE(detail,'Revisa la foto antes de decidir.'),user_id,message_id,
    created_at,CASE WHEN state='reviewed' THEN 'resolved' ELSE 'open' END,md5(id::text||state||updated_at::text)
@@ -82,6 +85,7 @@ export async function resolveInbox(api:Api,botId:number,chat:ChatRow,actorId:num
   if(item.revision!==input.revision||item.version!==input.version)fail('El elemento cambió. Actualiza antes de resolver.');
   if(item.state==='processing')fail('La resolución sigue en curso. Espera antes de revisarla.');
   if(joinAction&&item.state==='uncertain')fail('El resultado quedó incierto. Comprueba Telegram y márcalo revisado; no repitas la solicitud.');
+  if(joinAction&&(await client.query("SELECT 1 FROM join_challenges WHERE native_request_id=$1 AND (native_query IS NOT NULL OR state='approving')",[input.ref])).rowCount)fail('El portal de ingreso está activo. Espera a que termine la verificación.');
   // Persist before contacting Telegram. A killed process can only be acknowledged later, never auto-replayed.
   if(!joinAction)await client.query('BEGIN');
   try{

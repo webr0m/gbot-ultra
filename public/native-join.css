@@ -1,0 +1,31 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--tg-theme-bg-color, Canvas);
+  color: var(--tg-theme-text-color, CanvasText);
+}
+main { width: min(28rem, calc(100% - 3rem)); padding-block: 2rem; }
+.brand { font-weight: 750; letter-spacing: .08em; }
+h1 { font-size: clamp(1.5rem, 5vw, 2rem); line-height: 1.15; }
+#status { line-height: 1.55; }
+form { display: grid; gap: .75rem; }
+[hidden] { display: none !important; }
+label { display: grid; gap: .5rem; margin-bottom: .5rem; }
+#prompt { font-weight: 700; font-size: 1.4rem; }
+input, button { font: inherit; border-radius: .65rem; padding: .8rem; }
+input { border: 1px solid currentColor; }
+button {
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: var(--tg-theme-button-color, #1261aa);
+  color: var(--tg-theme-button-text-color, #fff);
+  font-weight: 700;
+}
+button.secondary { color: inherit; background: transparent; border-color: currentColor; }
+button:disabled { opacity: .65; cursor: wait; }

@@ -65,9 +65,20 @@ export function registerAdvancedRoutes(app:FastifyInstance,bot:Bot<AppContext>):
     if(!destination||!member||!(member.status==='creator'||member.status==='administrator'&&(destination.type!=='channel'||member.can_post_messages)))throw new ApiError(400,'El bot necesita acceso de administrador para publicar en el destino de registros.');
   }
   const changed = settingsDiff(current.settings, parsed.settings).map(diff=>diff.key);
+  if(changed.includes('joinGate'))await assertActorRight(ctx,'can_invite_users');
   if(['raid','locks','warningExpiry','night','probation','forwarding','textLimits'].some(key=>changed.includes(key)))await assertActorRight(ctx,'can_restrict_members');
   if(['forwarding','textLimits'].some(key=>changed.includes(key)))await assertActorRight(ctx,'can_delete_messages');
   return {ok:true,...await saveAdvanced(chat,parsed.settings,auth.user.id,parsed.version)};
+ });
+ app.get('/api/advanced/join-guard',async request=>{
+  const q=request.query as Record<string,unknown>;
+  const {ctx}=await access(request,parseChatId(q.chat_id),'joinGate');
+  const {api,botId}=await apiIdentityForChat(ctx.chatId,ctx.api,ctx.botId);
+  const [info,group,member]=await Promise.all([
+   api.getMe(),api.getChat(ctx.chatId),getChatMemberSafe(api,ctx.chatId,botId),
+  ]);
+  return {ok:true,supported:info.supports_join_request_queries===true,
+   assigned:group.guard_bot?.id===botId,canInvite:member?.status==='administrator'&&member.can_invite_users===true};
  });
  app.post('/api/advanced/trust',async request=>{
   const b=bodyOf(request);const {chat,auth}=await access(request,parseChatId(b.chatId),'trust','can_restrict_members');const v=trustSchema.parse(b);
@@ -108,6 +119,7 @@ export function registerAdvancedRoutes(app:FastifyInstance,bot:Bot<AppContext>):
   if(mode.startsWith('restore')){const version=z.number().int().min(0).parse(b.targetVersion);const row=await one('SELECT settings FROM advanced_history WHERE chat_id=$1 AND version=$2',[chat.chat_id,version]);if(!row)throw new ApiError(404,'Versión no encontrada.');target=advancedSchema.parse(row.settings);}
   else {const file=transferSchema.parse(b.file);const sections=z.array(z.enum(['raid','locks','warningExpiry','night','filters','silent','joinGate','richNotes','observation','probation','forwarding','textLimits','discussion'])).min(1).max(13).parse(b.sections);target=structuredClone(current.settings);for(const key of sections)(target as Record<string,unknown>)[key]=file.advanced[key];}
   for(const key of Object.keys(target) as (keyof AdvancedSettings)[])if(JSON.stringify(target[key])!==JSON.stringify(current.settings[key])&&!hasFeature(chat,key,auth.user.id))throw new ApiError(402,'Tu nivel no incluye '+ADVANCED_FEATURES[key].label+'.');
+  if(JSON.stringify(target.joinGate)!==JSON.stringify(current.settings.joinGate))await assertActorRight(ctx,'can_invite_users');
   if(mode==='preview'||mode==='restore-preview')return {ok:true,diff:settingsDiff(current.settings,target),version:current.version,target};
   const version=z.number().int().min(0).parse(b.version);return {ok:true,...await saveAdvanced(chat,target,auth.user.id,version)};
  });

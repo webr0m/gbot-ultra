@@ -20,6 +20,7 @@ import { registerModerationRoutes } from "./routes/moderation.js";
 import { registerPremiumRoutes } from "./routes/premium.js";
 import { registerSettingsRoutes } from "./routes/settings.js";
 import { registerAdvancedRoutes } from './routes/advanced.js';
+import { registerNativeJoinRoutes } from './routes/native-join.js';
 import { ZodError } from 'zod';
 import { query } from '../db/pool.js';
 import { ModerationError } from '../services/moderation.js';
@@ -136,6 +137,7 @@ export async function buildServer(primary: Bot<AppContext>): Promise<FastifyInst
   registerPremiumRoutes(app, bot);
   registerAssetRoutes(app, bot);
   registerAdvancedRoutes(app, bot);
+  registerNativeJoinRoutes(app, primary);
   registerGlobalBanRoutes(app, bot);
   registerAutomationRoutes(app, bot);
   registerUltraRoutes(app,bot,primary);

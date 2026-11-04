@@ -9,6 +9,8 @@ export interface TelegramAuth {
   user: User;
   authDate: number;
   queryId?: string;
+  joinRequestQueryId?: string;
+  chatId?: number;
   startParam?: string;
   dev: boolean;
 }
@@ -37,7 +39,7 @@ function parseUser(raw: string | null): User | null {
  * Valida la firma de `Telegram.WebApp.initData` según la documentación de
  * Telegram: HMAC-SHA256 con la clave secreta derivada del token del bot.
  */
-export function verifyInitData(initData: string): TelegramAuth | null {
+export function verifyInitData(initData: string, botToken = config.botToken): TelegramAuth | null {
   if (!initData || initData.length > 16_384) return null;
 
   const params = new URLSearchParams(initData);
@@ -50,7 +52,7 @@ export function verifyInitData(initData: string): TelegramAuth | null {
     .map(([key, value]) => `${key}=${value}`)
     .join("\n");
 
-  const secretKey = createHmac("sha256", "WebAppData").update(config.botToken).digest();
+  const secretKey = createHmac("sha256", "WebAppData").update(botToken).digest();
   const computed = createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
 
   if (!safeEqual(computed, hash.toLowerCase())) return null;
@@ -61,11 +63,21 @@ export function verifyInitData(initData: string): TelegramAuth | null {
 
   const user = parseUser(params.get("user"));
   if (!user) return null;
+  let chatId: number | undefined;
+  const chat = params.get("chat");
+  if (chat) {
+    try {
+      const id = JSON.parse(chat)?.id;
+      if (Number.isSafeInteger(id)) chatId = id;
+    } catch { return null; }
+  }
 
   return {
     user,
     authDate,
     queryId: params.get("query_id") ?? undefined,
+    joinRequestQueryId: params.get("chat_join_request_query_id") ?? undefined,
+    chatId,
     startParam: params.get("start_param") ?? undefined,
     dev: false,
   };

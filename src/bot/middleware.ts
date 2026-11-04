@@ -86,7 +86,7 @@ export async function attachContext(
       logger.error({ err: error, chatId: ctx.chat.id }, tr("No se pudo cargar el grupo"));
     }
 
-    if (from && !from.is_bot) {
+    if (from && !from.is_bot && !ctx.chatJoinRequest) {
       isAdmin = await isUserAdmin(ctx.api, ctx.chat.id, from.id).catch(() => false);
       if (!isServiceMessage(ctx)) {
         void recordMessageActivity(ctx.chat.id, from.id, false).catch((error) =>

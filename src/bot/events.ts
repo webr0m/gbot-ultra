@@ -13,6 +13,7 @@ import { syncAdmins } from "../services/admins.js";
 import { invalidateChat, loadChat } from "../services/chat-cache.js";
 import { isPremium, activatePremium, getPlan, parseInvoicePayload } from "../services/premium.js";
 import { raidJoin, beginJoinGate, scopeExemptions, runtimeAdvanced } from '../services/advanced-engine.js';
+import { openNativeJoin, answerNativeJoin } from '../services/native-join.js';
 import { sendCaptcha } from "../services/captcha.js";
 import { applyMemberProbation } from "../services/member-probation.js";
 import { sendGoodbye, sendWelcome } from "../services/welcome.js";
@@ -253,19 +254,28 @@ export function registerEvents(bot: Bot<AppContext>): void {
   bot.on("chat_join_request", async (ctx) => {
     const request = ctx.chatJoinRequest;
     if (!request) return;
+    const chat = request.chat;
+    const chatRow = isGroupChat(chat) ? ctx.app.chatRow ?? await getChat(chat.id) : null;
+    let requestId: string | null = null;
     if (request.query_id) {
       try {
-        await ctx.api.raw.answerChatJoinRequestQuery({ chat_join_request_query_id: request.query_id, result: "queue" });
-      } catch (error) {
-        logger.warn({ err: error, chatId: request.chat.id }, tr("No se pudo poner en cola la solicitud de ingreso"));
+        if (chatRow) {
+          requestId = await rememberJoin(request);
+          if (await openNativeJoin(ctx.api, ctx.me.id, chatRow, request, requestId)) return;
+        }
+      } catch {
+        logger.warn({ chatId: chat.id }, 'No se pudo preparar el portal de ingreso');
+      }
+      try {
+        await answerNativeJoin(ctx.api, request.query_id, "queue");
+      } catch {
+        logger.warn({ chatId: chat.id }, tr("No se pudo poner en cola la solicitud de ingreso"));
+        return;
       }
     }
-    const chat = request.chat;
-    if (!isGroupChat(chat)) return;
-    const chatRow = ctx.app.chatRow ?? (await getChat(chat.id));
     if (!chatRow) return;
+    if (!requestId) await rememberJoin(request);
 
-    await rememberJoin(request);
     if ((await globalBan(request.from.id)).banned) {
       try{await ctx.api.declineChatJoinRequest(chat.id, request.from.id);await finishJoin(chat.id,request.from.id,'declined');}catch{/* Keep the request available for manual review. */}
       return;

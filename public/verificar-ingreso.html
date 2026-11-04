@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://telegram.org; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>GBot · Verificación de ingreso</title>
+  <link rel="stylesheet" href="/native-join.css">
+  <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+  <script src="/native-join.js" defer></script>
+</head>
+<body>
+  <main>
+    <p class="brand">GBot</p>
+    <h1 id="title">Verificación de ingreso</h1>
+    <p id="status" role="status" aria-live="polite">Cargando la verificación…</p>
+    <form id="challenge" hidden>
+      <label id="prompt-label" for="answer" hidden>
+        <span id="prompt"></span>
+        <input id="answer" type="text" inputmode="numeric" maxlength="2" pattern="[0-9]{1,2}" autocomplete="off">
+      </label>
+      <button id="verify" type="submit">Verificar</button>
+      <button id="review" type="button" class="secondary">Pedir revisión manual</button>
+    </form>
+    <button id="close" type="button" hidden>Cerrar</button>
+  </main>
+</body>
+</html>
