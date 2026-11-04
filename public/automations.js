@@ -27,7 +27,7 @@
     },
     preview(content, extras) {
       const table = extras?.table?.length ? `<div class="table-scroll"><table class="compare-table"><tbody>${extras.table.map((row,i) => `<tr>${row.map(cell => i ? `<td>${esc(cell)}</td>` : `<th scope="col">${esc(cell)}</th>`).join("")}</tr>`).join("")}</tbody></table></div>` : "";
-      const gallery = extras?.gallery?.length ? `<p>Galería · ${extras.gallery.length} fotos por URL</p>` : "";
+      const gallery = extras?.gallery?.length ? `<p>Galería · ${extras.gallery.length} ${extras.gallery.length === 1 ? "foto" : "fotos"} por URL</p>` : "";
       return `<article>${extras?.heading ? `<h3>${esc(extras.heading)}</h3>` : ""}<pre class="automation-preview">${esc(content)}</pre>${table}${gallery}</article>`;
     },
   };
