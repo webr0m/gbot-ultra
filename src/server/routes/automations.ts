@@ -121,7 +121,7 @@ export function registerAutomationRoutes(
         input,
         firstRun: first.toISOString(),
         notice:
-          "Texto sin formato. El cron de respaldo del hosting puede tardar hasta cinco minutos.",
+          (input.article ? "Artículo enriquecido. " : "Texto sin formato. ") + "El cron de respaldo del hosting puede tardar hasta cinco minutos.",
       };
     const post = await savePublication(
       chat.chat_id,

@@ -6,17 +6,19 @@ export async function setPending(
   userId: number,
   messageId: number | null,
   answer: string | null,
+  restrictionUntil: number | null = null,
 ): Promise<CaptchaPendingRow> {
   const row = await one<CaptchaPendingRow>(
-    `INSERT INTO captcha_pending (chat_id, user_id, message_id, answer, attempts)
-     VALUES ($1, $2, $3, $4, 0)
+    `INSERT INTO captcha_pending (chat_id, user_id, message_id, answer, attempts, restriction_until)
+     VALUES ($1, $2, $3, $4, 0, $5)
      ON CONFLICT (chat_id, user_id) DO UPDATE SET
        message_id = EXCLUDED.message_id,
        answer = EXCLUDED.answer,
+       restriction_until = EXCLUDED.restriction_until,
        attempts = 0,
        created_at = now()
      RETURNING *`,
-    [chatId, userId, messageId, answer],
+    [chatId, userId, messageId, answer, restrictionUntil],
   );
   return row!;
 }

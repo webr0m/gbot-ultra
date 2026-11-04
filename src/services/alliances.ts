@@ -78,13 +78,13 @@ export async function publishAllianceProfile(chatId:number,actorId:number):Promi
  const a=await linkedAlliance(chatId);if(!a||(!config.ownerIds.has(actorId)&&a.owner_id!==actorId))error(tr("Solo el responsable publica perfiles."));
  const c=await advancedConfig(chatId);const profile=structuredClone(c.settings);
  // Destinations and quiet policy are local, never transferred to another group.
- profile.topics=structuredClone(ADVANCED_DEFAULTS.topics);profile.silent.enabled=false;profile.observation.enabled=false;
+ profile.topics=structuredClone(ADVANCED_DEFAULTS.topics);profile.silent.enabled=false;profile.observation.enabled=false;profile.richArticles=ADVANCED_DEFAULTS.richArticles;profile.discussion=ADVANCED_DEFAULTS.discussion;
  await query('UPDATE alliances SET profile=$2::jsonb,profile_version=profile_version+1 WHERE id=$1',[a.id,JSON.stringify(profile)]);
  await logModeration({chatId,actorId,action:'alliance_profile_publish',reason:tr("Perfil sin destinos privados")});
 }
 export async function adoptAllianceProfile(chat:ChatRow,actorId:number,version:number,profileVersion:number):Promise<void>{
  const a=await linkedAlliance(chat.chat_id);if(!a?.profile)error(tr("No hay perfil publicado."),404);if(a.profile_version!==profileVersion)error(tr("El perfil cambió; revisa de nuevo las diferencias."),409);
- const current=await advancedConfig(chat.chat_id);const profile={...a.profile,topics:current.settings.topics,silent:current.settings.silent,observation:current.settings.observation};
+ const current=await advancedConfig(chat.chat_id);const profile={...a.profile,topics:current.settings.topics,silent:current.settings.silent,observation:current.settings.observation,richArticles:current.settings.richArticles,discussion:current.settings.discussion};
  await saveAdvanced(chat,profile,actorId,version);
  await query('UPDATE alliance_chats SET profile_version=$2 WHERE chat_id=$1',[chat.chat_id,a.profile_version]);
 }

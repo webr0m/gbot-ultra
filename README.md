@@ -1,6 +1,6 @@
 # GBot Ultra
 
-Bot de administración de grupos de Telegram con Mini App, moderación y planes mediante Telegram Stars. Versión 2.7.0.
+Bot de administración de grupos de Telegram con Mini App, moderación y planes mediante Telegram Stars. Versión 2.8.0.
 
 - Captcha, antienlaces, antiflood, lista negra, advertencias y registro de moderación.
 - Moderación de artículos enriquecidos, bots invitados y ediciones; bloqueos opcionales de Live Photos, historias, spoilers y otros contenidos (Premium).

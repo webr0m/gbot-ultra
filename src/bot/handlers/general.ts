@@ -1,4 +1,6 @@
-import { InlineKeyboard } from "grammy";
+import { GrammyError, InlineKeyboard } from "grammy";
+import { runtimeAdvanced } from "../../services/advanced-engine.js";
+import { articleMessage } from "../../services/rich-articles.js";
 import { tr } from "../../services/bot-i18n.js";
 import type { Bot } from "grammy";
 import { config, webappUrlForChat } from "../../config.js";
@@ -84,10 +86,12 @@ export function registerGeneral(bot: Bot<AppContext>): void {
     }
     if(payload==='premium'){await ctx.reply(tr("👑 Premium: 50 ⭐ / 30 días por grupo.\n🚀 Pro: 135 ⭐ una vez para 10 grupos.\n👑 Ultra: 135 ⭐ / 30 días por grupo.\n\nAbre /premium para elegir el grupo y consultar los planes."));return;}
 
-    if (/^(panel|settings)_/.test(payload)) {
-      const chatId = Number(payload.replace(/^(panel|settings)_/, ""));
+    if (/^(panel|settings|members|anonmod)_/.test(payload)) {
+      const chatId = Number(payload.slice(payload.indexOf("_") + 1));
       if (Number.isSafeInteger(chatId) && chatId !== 0) {
-        await showPanel(ctx, chatId, payload.startsWith("settings_") ? "settings" : "home");
+        const anonymous = payload.startsWith("anonmod_");
+        const tab = payload.startsWith("settings_") ? "settings" : anonymous || payload.startsWith("members_") ? "members" : "home";
+        await showPanel(ctx, chatId, tab, anonymous);
         return;
       }
     }
@@ -261,6 +265,15 @@ export function registerGeneral(bot: Bot<AppContext>): void {
     }
     const chat = ctx.app.chatRow;
     if (!chat) return;
+    const article = (await runtimeAdvanced(chat)).richArticles.rules;
+    if (article) {
+      try {
+        await ctx.replyWithRichMessage(articleMessage(article.content, article.extras));
+        return;
+      } catch (error) {
+        if (!(error instanceof GrammyError && error.error_code === 400)) throw error;
+      }
+    }
     await ctx.reply(rulesText(escapeHtml(chat.title), ctx.app.settings.rules.text), {
       parse_mode: "HTML",
       link_preview_options: { is_disabled: true },

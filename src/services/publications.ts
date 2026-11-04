@@ -12,6 +12,7 @@ import { onceOperation } from "./operations.js";
 import { mapConcurrent } from "../utils/concurrency.js";
 import { logModeration } from "../db/repositories/moderation.js";
 import { apiIdentityForChat } from './branded-bots.js';
+import { articleExtrasSchema, articleMessage, type ArticleExtras } from './rich-articles.js';
 
 function failure(message: string, statusCode = 400): never {
   throw Object.assign(new Error(message), { statusCode });
@@ -31,6 +32,7 @@ export const publicationSchema = z
   .object({
     title: z.string().trim().min(1).max(80),
     content: z.string().trim().min(1).max(4000),
+    article: articleExtrasSchema.nullable().default(null),
     timezone: zone,
     localTime: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/),
     recurrence: z.enum(["once", "daily", "weekly"]),
@@ -58,6 +60,7 @@ export type Publication = {
   actor_id: number;
   title: string;
   content: string;
+  article: ArticleExtras | null;
   timezone: string;
   local_time: string;
   recurrence: PublicationInput["recurrence"];
@@ -213,17 +216,18 @@ export async function savePublication(
       v.threadId,
       v.buttonLabel || null,
       v.buttonUrl || null,
+      v.article ? JSON.stringify(v.article) : null,
     ];
     if (id)
       return (
         await c.query(
-          "UPDATE scheduled_posts SET actor_id=$2,title=$3,content=$4,timezone=$5,local_time=$6,recurrence=$7,next_run_at=$8,thread_id=$9,button_label=$10,button_url=$11,state='active',last_error=NULL,version=version+1,updated_at=now() WHERE chat_id=$1 AND id=$12 RETURNING *",
+          "UPDATE scheduled_posts SET actor_id=$2,title=$3,content=$4,timezone=$5,local_time=$6,recurrence=$7,next_run_at=$8,thread_id=$9,button_label=$10,button_url=$11,article=$12::jsonb,state='active',last_error=NULL,version=version+1,updated_at=now() WHERE chat_id=$1 AND id=$13 RETURNING *",
           [...params, id],
         )
       ).rows[0];
     return (
       await c.query(
-        "INSERT INTO scheduled_posts(chat_id,actor_id,title,content,timezone,local_time,recurrence,next_run_at,thread_id,button_label,button_url,create_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *",
+        "INSERT INTO scheduled_posts(chat_id,actor_id,title,content,timezone,local_time,recurrence,next_run_at,thread_id,button_label,button_url,article,create_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13) RETURNING *",
         [...params, createKey],
       )
     ).rows[0];
@@ -297,12 +301,11 @@ export async function runPublications(
         throw new Error(
           tr("La programación venció hace más de un día; revisa antes de publicar."),
         );
-      const result = await onceOperation(
+      const result = await onceOperation<{ message_id: number }>(
         `publication:${p.chat_id}:${p.id}:${p.version}:${p.next_run_at.toISOString()}`,
-        () =>
-          api.sendMessage(p.chat_id, p.content, {
+        () => {
+          const options = {
             message_thread_id: p.thread_id || undefined,
-            link_preview_options: { is_disabled: true },
             reply_markup: p.button_url
               ? {
                   inline_keyboard: [
@@ -310,7 +313,11 @@ export async function runPublications(
                   ],
                 }
               : undefined,
-          }),
+          };
+          return p.article
+            ? api.sendRichMessage(p.chat_id, articleMessage(p.content, p.article), options)
+            : api.sendMessage(p.chat_id, p.content, { ...options, link_preview_options: { is_disabled: true } });
+        },
       );
       messageId = result.message_id;
       state = "sent";

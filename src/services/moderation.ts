@@ -1,4 +1,7 @@
 import { journalMemberAction } from "./sanction-journal.js";
+import { hasFeature } from "./entitlements.js";
+import { withFreshTelegramReads } from "./telegram-cache.js";
+import { onceOperation } from "./operations.js";
 import { tr } from "./bot-i18n.js";
 import {withBotLanguage} from './bot-i18n.js';
 import type { Api } from "grammy";
@@ -167,6 +170,7 @@ async function assertTargetModeratable(
   actorId: number,
   target: TargetInfo,
   botId: number,
+  requireUnrestricted = false,
 ): Promise<void> {
   if (target.userId === botId) {
     throw new ModerationError(tr("No puedo moderarme a mí mismo."), tr("No puedo moderarme a mí mismo."));
@@ -188,6 +192,9 @@ async function assertTargetModeratable(
       tr("No se puede moderar a un administrador"),
       tr("No puedo moderar a otro administrador. Primero degrádalo."),
     );
+  }
+  if (requireUnrestricted && member.status !== "member") {
+    throw new ModerationError(tr("El usuario debe ser miembro y no tener una restricción individual activa."));
   }
 }
 
@@ -216,6 +223,40 @@ export async function assertActorRight(context: ModerationContext, right: string
 async function assertModerationRight(context: ModerationContext, right: string): Promise<void> {
   await assertActorRight(context, right);
   await assertBotRight(context.api, context.chatId, context.botId, right);
+}
+
+export async function muteReactions(context: ModerationContext, target: TargetInfo, durationSeconds: number): Promise<void> {
+  if (!hasFeature(context.chat, "reactions", context.actorId)) throw new ModerationError(tr("La moderación de reacciones requiere Pro."));
+  if (context.chat.type !== "supergroup") throw new ModerationError(tr("El silencio de reacciones requiere un supergrupo."));
+  if (!Number.isInteger(durationSeconds) || durationSeconds < 60 || durationSeconds > 2_592_000) {
+    throw new ModerationError(tr("El silencio de reacciones admite entre 1 minuto y 30 días."));
+  }
+  await assertModerationRight(context, "can_restrict_members");
+  await journalMemberAction(context, target.userId, "mute", undefined, () => withFreshTelegramReads(async () => {
+    await assertTargetModeratable(context.api, context.chatId, context.actorId, target, context.botId, true);
+    const chat = await context.api.getChat(context.chatId);
+    if (chat.type !== "supergroup" || !chat.permissions?.can_react_to_messages) {
+      throw new ModerationError(tr("Las reacciones ya están restringidas en el grupo o Telegram no informa ese permiso."));
+    }
+    await context.api.restrictChatMember(context.chatId, target.userId, { ...chat.permissions, can_react_to_messages: false }, {
+      use_independent_chat_permissions: true,
+      until_date: untilDateFromSeconds(durationSeconds),
+    });
+    await writeLog(context, "mute_reactions", target, null, durationSeconds);
+  }));
+}
+
+export async function removeReactions(context: ModerationContext, target: TargetInfo, messageId?: number): Promise<void> {
+  if (!hasFeature(context.chat, "reactions", context.actorId)) throw new ModerationError(tr("La moderación de reacciones requiere Pro."));
+  await assertModerationRight(context, "can_delete_messages");
+  await withFreshTelegramReads(() => assertTargetModeratable(context.api, context.chatId, context.actorId, target, context.botId));
+  const key = `reactions:${context.chatId}:${target.userId}:${messageId ?? "recent"}`;
+  await onceOperation(`${key}:${Math.floor(Date.now() / 5000)}`, async () => {
+    if (messageId) await context.api.raw.deleteMessageReaction({ chat_id: context.chatId, message_id: messageId, user_id: target.userId });
+    else await context.api.raw.deleteAllMessageReactions({ chat_id: context.chatId, user_id: target.userId });
+    await writeLog(context, "remove_reactions", target, null, null, { messageId });
+    return null;
+  });
 }
 
 function targetMention(target: TargetInfo): string {
@@ -282,6 +323,7 @@ async function writeLogLocalized(context:ModerationContext,action:string,target:
 
 export interface ActionOptions {
   metadata?:Record<string,unknown>;
+  requireUnrestricted?: boolean;
   target: TargetInfo;
   reason?: string | null;
   durationSeconds?: number | null;
@@ -298,6 +340,7 @@ async function banUserRaw(
     context.actorId,
     options.target,
     context.botId,
+    options.requireUnrestricted,
   );
 
   try {
@@ -381,6 +424,7 @@ async function muteUserRaw(
     context.actorId,
     options.target,
     context.botId,
+    options.requireUnrestricted,
   );
 
   try {

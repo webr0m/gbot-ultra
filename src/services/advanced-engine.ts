@@ -7,7 +7,7 @@ import type { Message, User, Chat, ChatJoinRequest } from 'grammy/types';
 import { config } from '../config.js';
 import { many, one, query, withTransaction } from '../db/pool.js';
 import type { ChatRow, GroupSettings } from '../db/types.js';
-import { advancedConfig, effectiveAdvanced, trustedScopes, type AdvancedSettings } from './advanced-config.js';
+import { advancedConfig, effectiveAdvanced, trustedScopes, type AdvancedSettings, type FORWARD_ORIGINS } from './advanced-config.js';
 import { hasFeature } from './entitlements.js';
 import { globalBan } from './global-bans.js';
 import { ReadCache } from './read-cache.js';
@@ -26,13 +26,41 @@ export async function scopeExemptions(chat:ChatRow,userId:number):Promise<string
  if(config.ownerIds.has(userId))return ['locks','raid','captcha','blacklist','antilink','antiflood'];
  const c=await advancedConfig(chat.chat_id);return hasFeature(chat,'trust',c.actorId)?trustedScopes(chat.chat_id,userId):[];
 }
-export function contentMatch(message:Partial<Message>,settings:AdvancedSettings):string|null{
- if(!settings.locks.enabled)return null;
+function matchesTextPattern(text:string,pattern:string):boolean{
+ let offset=0;
+ for(const part of pattern.trim().split('*').filter(Boolean)){
+  const index=text.indexOf(part,offset);
+  if(index===-1)return false;
+  offset=index+part.length;
+ }
+ return true;
+}
+export function contentMatch(message:Partial<Message>,settings:AdvancedSettings,skipPatterns=false):string|null{
+ const forward=message.forward_origin;
+ const origin:typeof FORWARD_ORIGINS[number]|undefined=forward?.type==='user'?(forward.sender_user.is_bot?'bot':'person'):forward?.type;
+ if(origin&&settings.forwarding.actions[origin])return 'forward:'+origin;
+ const {patterns,maxLength}=settings.textLimits;
+ if(!settings.locks.enabled&&!maxLength&&(!patterns||skipPatterns))return null;
  const content=messageContent(message);
- for(const type of settings.locks.types){
+ for(const type of settings.locks.enabled?settings.locks.types:[]){
   if(type==='invite'&&content.links.some(link=>/(?:t\.me|telegram\.me)\/(?:\+|joinchat\/|[a-zA-Z0-9_]+)/i.test(link)))return type;
   if(content.types.has(type))return type;
- }return null;
+ }
+ if(maxLength&&content.text.length>maxLength&&Array.from(content.text).length>maxLength)return 'text_length';
+ if(patterns&&!skipPatterns){
+  const normalize=(value:string)=>value.normalize('NFKC').toLowerCase();
+  const text=normalize(content.text);
+  if(normalize(patterns).split('\n').filter(line=>line.trim()).some(line=>line.split('&&').every(term=>matchesTextPattern(text,term))))return 'text_pattern';
+ }
+ return null;
+}
+export function contentRule(settings:AdvancedSettings,type:string){
+ if(type.startsWith('forward:')){
+  const origin=type.slice(8) as typeof FORWARD_ORIGINS[number];
+  return {key:'forwarding',action:settings.forwarding.actions[origin]!,durationSeconds:settings.forwarding.durationSeconds} as const;
+ }
+ const key=type.startsWith('text_')?'textLimits':'locks';
+ return {key,action:settings[key].action,durationSeconds:settings[key].durationSeconds} as const;
 }
 export function isNight(settings:AdvancedSettings['night'],now=new Date()):boolean{
  if(!settings.enabled)return false;
@@ -46,18 +74,19 @@ export function isNight(settings:AdvancedSettings['night'],now=new Date()):boole
 export async function advancedMessage(api:Api,chat:ChatRow,base:GroupSettings,message:Message,user:User,botId:number):Promise<{handled:boolean;settings:GroupSettings;observe:boolean}>{
  const settings=structuredClone(base);const a=await runtimeAdvanced(chat);const scopes=await scopeExemptions(chat,user.id);
  for(const key of ['blacklist','antilink','antiflood'] as const)if(scopes.includes(key))settings[key].enabled=false;
- const type=scopes.includes('locks')?null:contentMatch(message,a);
+ const type=scopes.includes('locks')?null:contentMatch(message,a,scopes.includes('blacklist'));
  if(!type)return {handled:false,settings,observe:a.observation.enabled};
- const metric=(outcome:'applied'|'observation'|'error')=>recordRuleEvent(chat.chat_id,message.message_id,'locks:'+type,ruleRevision(a.locks),a.locks.action,outcome);
+ const rule=contentRule(a,type);
+ const metric=(outcome:'applied'|'observation'|'error')=>recordRuleEvent(chat.chat_id,message.message_id,rule.key+':'+type,ruleRevision(a[rule.key]),rule.action,outcome);
  try{await onceOperation(`content:${chat.chat_id}:${message.message_id}:${message.edit_date??0}`,async()=>{
-  if(a.observation.enabled){await metric('observation');await logModeration({chatId:chat.chat_id,targetId:user.id,action:'observation',reason:tr("Contenido: ")+type,metadata:{would:a.locks.action}});return null;}
+  if(a.observation.enabled){await metric('observation');await logModeration({chatId:chat.chat_id,targetId:user.id,action:'observation',reason:tr("Contenido: ")+type,metadata:{would:rule.action}});return null;}
   await api.deleteMessage(chat.chat_id,message.message_id);
   if(message.sender_chat||(isGuestMessage(message)&&!moderationUser(message))){await metric('applied');await logModeration({chatId:chat.chat_id,action:'delete_channel_post',reason:tr("Contenido: ")+type,metadata:{senderChatId:message.sender_chat?.id??message.guest_bot_caller_chat?.id,guest:isGuestMessage(message)}});return null;}
   const ctx:ModerationContext={api,chatId:chat.chat_id,chat,settings,botId,actorId:botId,actorName:'GBot',source:'bot',publicLogFallback:a.silent.enabled};
-  const target={userId:user.id,name:user.first_name};const options={target,reason:tr("Contenido no permitido: ")+type,durationSeconds:a.locks.durationSeconds};
-  if(a.locks.action==='warn')await warnUser(ctx,target,options.reason);
-  else if(a.locks.action==='mute')await muteUser(ctx,options);
-  else if(a.locks.action==='ban')await banUser(ctx,options);
+  const target={userId:user.id,name:user.first_name};const options={target,reason:tr("Contenido no permitido: ")+type,durationSeconds:rule.durationSeconds};
+  if(rule.action==='warn')await warnUser(ctx,target,options.reason);
+  else if(rule.action==='mute')await muteUser(ctx,options);
+  else if(rule.action==='ban')await banUser(ctx,options);
   else {
    await logModeration({chatId:chat.chat_id,targetId:user.id,action:'delete',reason:options.reason});
    if(settings.logs.enabled&&settings.logs.chatId){try{await api.sendMessage(settings.logs.chatId,'🛡️ '+chat.title+' · '+options.reason,{message_thread_id:a.topics.logThreadId||undefined});}catch{if(a.silent.enabled)await api.sendMessage(chat.chat_id,tr("🛡️ Mensaje eliminado. No se pudo enviar el registro al destino configurado.")).catch(()=>undefined);}}
@@ -102,6 +131,20 @@ export async function autoRespond(api:Api,chat:ChatRow,message:Message):Promise<
  const claimed=await one('UPDATE auto_responses SET last_sent_at=now() WHERE id=$1 AND (last_sent_at IS NULL OR last_sent_at<now()-make_interval(secs=>cooldown_seconds)) RETURNING id',[rule.id]);if(!claimed)return false;
  await api.sendMessage(chat.chat_id,rule.content,{message_thread_id:message.message_thread_id,reply_parameters:{message_id:message.message_id,allow_sending_without_reply:true},reply_markup:rule.button_url&&rule.button_label?new InlineKeyboard().url(rule.button_label,rule.button_url):undefined});return true;
 }
+export async function autoDiscussionComment(api: Api, chat: ChatRow, message: Message): Promise<void> {
+ const origin = message.forward_origin;
+ if (!message.is_automatic_forward || origin?.type !== 'channel' || origin.chat.id !== message.sender_chat?.id) return;
+ const { discussion } = await runtimeAdvanced(chat);
+ if (!discussion.enabled) return;
+ await onceOperation(`discussion:${chat.chat_id}:${origin.chat.id}:${origin.message_id}`, async () => {
+  const sent = await api.sendMessage(chat.chat_id, discussion.text, {
+   reply_parameters: { message_id: message.message_id },
+   message_thread_id: message.is_topic_message ? message.message_thread_id : undefined,
+   link_preview_options: { is_disabled: true },
+  });
+  return sent.message_id;
+ });
+}
 export type RichNote={chat_id:number;name:string;content:string;media_type:string|null;file_id:string|null;buttons:{label:string;url:string}[];private_delivery:boolean};
 export async function deliverRichNote(api:Api,note:RichNote,destination:number,threadId?:number):Promise<void>{
  const keyboard=new InlineKeyboard();for(const b of note.buttons)keyboard.url(b.label,b.url).row();
@@ -143,6 +186,8 @@ export async function runAdvancedSchedules(api:Api):Promise<void>{
  const rows=await many<ChatRow>('SELECT c.* FROM chats c WHERE c.active AND (EXISTS(SELECT 1 FROM advanced_config a WHERE a.chat_id=c.chat_id) OR EXISTS(SELECT 1 FROM night_state n WHERE n.chat_id=c.chat_id))');
  for(const chat of rows){try{const {runtimeForChat}=await import('./branded-bots.js');const effectiveApi=(await runtimeForChat(chat.chat_id))?.bot.api??api;const a=await runtimeAdvanced(chat);await reconcileNight(effectiveApi,chat,a);}catch(error){logger.warn({err:error,chatId:chat.chat_id},tr("No se pudo aplicar horario"));}}
  await query("DELETE FROM raid_joins WHERE joined_at<now()-interval '10 minutes'");
+ await query("DELETE FROM group_invites WHERE expires_at<now() OR revoked_at<now()-interval '1 day'");
+ await query("DELETE FROM delegated_roles WHERE expires_at<now()");
  await query("UPDATE join_challenges SET state='expired' WHERE state='pending' AND expires_at<now()");
  await query("DELETE FROM join_challenges WHERE expires_at<now()-interval '7 days'");
  await query("DELETE FROM operation_receipts WHERE state='done' AND completed_at<now()-interval '30 days'");

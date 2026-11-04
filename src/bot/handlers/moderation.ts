@@ -4,6 +4,7 @@ import { formatDateTime } from "../../utils/date.js";
 import { formatDuration, parseModerationArgs } from "../../utils/duration.js";
 import { escapeHtml, mentionUser } from "../../utils/format.js";
 import { recentMessageIds } from "../../services/recent.js";
+import { delegateMessageAction } from "../../services/delegated-roles.js";
 import { resolveTarget, resolveUserFromReplyOrArgs } from "../../services/targets.js";
 import {
   ModerationError,
@@ -12,6 +13,8 @@ import {
   kickUser,
   lockChat,
   muteUser,
+  muteReactions,
+  removeReactions,
   pinMessage,
   promoteUser,
   purgeMessages,
@@ -108,6 +111,49 @@ async function handleModerationError(ctx: AppContext, error: unknown): Promise<v
 }
 
 export function registerModeration(bot: Bot<AppContext>): void {
+  bot.command(["teamdelete", "teampin"], async ctx => {
+    if (!ctx.app.chatRow || !ctx.from || ctx.from.is_bot || ctx.msg.sender_chat) return;
+    const message = ctx.msg.reply_to_message;
+    if (!message) {
+      await replyTemp(ctx, tr("Responde al mensaje sobre el que quieres actuar con tu rol temporal."));
+      return;
+    }
+    try {
+      await delegateMessageAction(modContext(ctx), ctx.msg.text.toLowerCase().startsWith("/teamdelete") ? "delete" : "pin", message);
+      await replyTemp(ctx, tr("✅ Acción del rol temporal aplicada."));
+    } catch (error) {
+      await handleModerationError(ctx, error);
+    }
+  });
+  bot.command(["mutereactions", "delreactions", "clearreactions"], async ctx => {
+    if (!(await ensureGroupAdmin(ctx)) || !(await guardAction(ctx))) return;
+    const command = ctx.msg.text.split(/[\s@]/, 1)[0]?.toLowerCase();
+    const messageId = command === "/delreactions" ? ctx.msg.reply_to_message?.message_id : undefined;
+    if (command === "/delreactions" && !messageId) {
+      await replyTemp(ctx, tr("Responde al mensaje e indica el ID de la persona cuyas reacciones quieres retirar."));
+      return;
+    }
+    const context = modContext(ctx);
+    try {
+      if (command === "/delreactions") {
+        const userId = Number(String(ctx.match).trim());
+        if (!Number.isSafeInteger(userId) || userId < 1) {
+          await replyTemp(ctx, tr("Usa /delreactions ID en respuesta al mensaje."));
+          return;
+        }
+        await removeReactions(context, { userId, name: String(userId) }, messageId);
+      } else {
+        const prepared = await prepareTarget(ctx);
+        if (!prepared) return;
+        if (command === "/mutereactions") await muteReactions(context, prepared.target, prepared.seconds ?? 3600);
+        else await removeReactions(context, prepared.target);
+      }
+      await replyTemp(ctx, tr("✅ Moderación de reacciones aplicada."));
+    } catch (error) {
+      await handleModerationError(ctx, error);
+    }
+  });
+
   bot.command("ban", async (ctx) => {
     if (!(await ensureGroupAdmin(ctx))) return;
     if (!(await guardAction(ctx))) return;

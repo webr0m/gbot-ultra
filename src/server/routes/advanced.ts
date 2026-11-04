@@ -7,13 +7,17 @@ import type { AppContext } from '../../bot/context.js';
 import type { ChatRow } from '../../db/types.js';
 import { many, one, query } from '../../db/pool.js';
 import { requireAuth, requireChat, bodyOf, parseChatId, ApiError } from '../helpers.js';
-import { advancedConfig, advancedSchema, saveAdvanced, invalidateAdvanced, TRUST_SCOPES, CONTENT_TYPES, type AdvancedSettings } from '../../services/advanced-config.js';
+import { advancedConfig, advancedSchema, saveAdvanced, invalidateAdvanced, TRUST_SCOPES, CONTENT_TYPES, FORWARD_ORIGINS, ADVANCED_DEFAULTS, type AdvancedSettings } from '../../services/advanced-config.js';
 import { ADVANCED_FEATURES, TIER_CATALOG, chatTier, hasFeature, type AdvancedFeature } from '../../services/entitlements.js';
-import { assertActorRight } from '../../services/moderation.js';
+import { assertActorRight, muteReactions, removeReactions } from '../../services/moderation.js';
+import { apiIdentityForChat } from '../../services/branded-bots.js';
+import { createGroupInvite, listGroupInvites, revokeGroupInvite } from '../../services/group-invites.js';
+import { applyBulkModeration, bulkInputSchema, previewBulkModeration } from '../../services/bulk-moderation.js';
+import { DELEGATE_SCOPES, listDelegates, manageDelegate } from '../../services/delegated-roles.js';
 import { settingsOf } from '../../services/chat-cache.js';
 import { settingsPatchSchema } from '../../services/settings.js';
 import { getChatMemberSafe } from '../../utils/telegram.js';
-import { advancedDataCache, contentMatch } from '../../services/advanced-engine.js';
+import { advancedDataCache, contentMatch, contentRule } from '../../services/advanced-engine.js';
 import { onceOperation } from '../../services/operations.js';
 import { logModeration } from '../../db/repositories/moderation.js';
 import { allianceOverview, linkedAlliance, createAlliance, joinAlliance, leaveAlliance, proposeCase, reviewCase, rotateAllianceInvite, publishAllianceProfile, adoptAllianceProfile } from '../../services/alliances.js';
@@ -60,7 +64,9 @@ export function registerAdvancedRoutes(app:FastifyInstance,bot:Bot<AppContext>):
     const destination=await bot.api.getChat(logId).catch(()=>null);const member=await getChatMemberSafe(bot.api,logId,bot.botInfo.id);
     if(!destination||!member||!(member.status==='creator'||member.status==='administrator'&&(destination.type!=='channel'||member.can_post_messages)))throw new ApiError(400,'El bot necesita acceso de administrador para publicar en el destino de registros.');
   }
-  if(['raid','locks','warningExpiry','night'].some(key=>JSON.stringify((current.settings as Record<string,unknown>)[key])!==JSON.stringify((parsed.settings as Record<string,unknown>)[key])))await assertActorRight(ctx,'can_restrict_members');
+  const changed = settingsDiff(current.settings, parsed.settings).map(diff=>diff.key);
+  if(['raid','locks','warningExpiry','night','probation','forwarding','textLimits'].some(key=>changed.includes(key)))await assertActorRight(ctx,'can_restrict_members');
+  if(['forwarding','textLimits'].some(key=>changed.includes(key)))await assertActorRight(ctx,'can_delete_messages');
   return {ok:true,...await saveAdvanced(chat,parsed.settings,auth.user.id,parsed.version)};
  });
  app.post('/api/advanced/trust',async request=>{
@@ -93,26 +99,81 @@ export function registerAdvancedRoutes(app:FastifyInstance,bot:Bot<AppContext>):
  });
  app.get('/api/advanced/export',async request=>{
   const q=request.query as Record<string,unknown>;const {chat}=await access(request,parseChatId(q.chat_id),'transfer');const record=await advancedConfig(chat.chat_id);
-  const advanced=structuredClone(record.settings);advanced.topics={welcomeThreadId:0,logThreadId:0};advanced.silent.enabled=false;advanced.observation.enabled=false;
+  const advanced=structuredClone(record.settings);advanced.topics={welcomeThreadId:0,logThreadId:0};advanced.silent.enabled=false;advanced.observation.enabled=false;advanced.richArticles=ADVANCED_DEFAULTS.richArticles;
   return {format:'gbot-settings',version:1,advanced};
  });
  app.post('/api/advanced/transfer',async request=>{
   const b=bodyOf(request);const {chat,auth,ctx}=await access(request,parseChatId(b.chatId),'transfer');await assertActorRight(ctx,'can_restrict_members');
   const mode=z.enum(['preview','apply','restore-preview','restore']).parse(b.mode);const current=await advancedConfig(chat.chat_id);let target:AdvancedSettings;
   if(mode.startsWith('restore')){const version=z.number().int().min(0).parse(b.targetVersion);const row=await one('SELECT settings FROM advanced_history WHERE chat_id=$1 AND version=$2',[chat.chat_id,version]);if(!row)throw new ApiError(404,'Versión no encontrada.');target=advancedSchema.parse(row.settings);}
-  else {const file=transferSchema.parse(b.file);const sections=z.array(z.enum(['raid','locks','warningExpiry','night','filters','silent','joinGate','richNotes','observation'])).min(1).max(10).parse(b.sections);target=structuredClone(current.settings);for(const key of sections)(target as Record<string,unknown>)[key]=file.advanced[key];}
+  else {const file=transferSchema.parse(b.file);const sections=z.array(z.enum(['raid','locks','warningExpiry','night','filters','silent','joinGate','richNotes','observation','probation','forwarding','textLimits','discussion'])).min(1).max(13).parse(b.sections);target=structuredClone(current.settings);for(const key of sections)(target as Record<string,unknown>)[key]=file.advanced[key];}
   for(const key of Object.keys(target) as (keyof AdvancedSettings)[])if(JSON.stringify(target[key])!==JSON.stringify(current.settings[key])&&!hasFeature(chat,key,auth.user.id))throw new ApiError(402,'Tu nivel no incluye '+ADVANCED_FEATURES[key].label+'.');
   if(mode==='preview'||mode==='restore-preview')return {ok:true,diff:settingsDiff(current.settings,target),version:current.version,target};
   const version=z.number().int().min(0).parse(b.version);return {ok:true,...await saveAdvanced(chat,target,auth.user.id,version)};
  });
  app.post('/api/advanced/simulate',async request=>{
-  const b=bodyOf(request);const {chat}=await access(request,parseChatId(b.chatId),'observation');const v=z.object({text:z.string().max(4000),type:z.enum(['text',...CONTENT_TYPES]),messageCount:z.number().int().min(1).max(100).default(1)}).parse(b);
-  const a=(await advancedConfig(chat.chat_id)).settings;const message=contentExample(v.text,v.type) as any;
-  const matches:{rule:string;action:string}[]=[];const content=contentMatch(message,a);if(content)matches.push({rule:'Contenido: '+content,action:a.locks.action});
+  const b=bodyOf(request);const {chat}=await access(request,parseChatId(b.chatId),'observation');const v=z.object({text:z.string().max(4000),type:z.enum(['text',...CONTENT_TYPES]),origin:z.enum(FORWARD_ORIGINS).optional(),messageCount:z.number().int().min(1).max(100).default(1)}).parse(b);
+  const a=(await advancedConfig(chat.chat_id)).settings;const message=contentExample(v.text,v.type,v.origin) as any;
+  const matches:{rule:string;action:string}[]=[];const content=contentMatch(message,a);if(content)matches.push({rule:'Contenido: '+content,action:contentRule(a,content).action});
   const base=settingsOf(chat);const rows=base.blacklist.enabled?await listBlacklist(chat.chat_id):[];
   const labels={blacklist:'Lista negra',antilink:'Antienlaces',antiflood:'Antiflood dentro de '+base.antiflood.windowSeconds+' segundos'};
   for(const hit of antispamHits(message,base,rows,v.messageCount))matches.push({rule:labels[hit.rule],action:hit.action});
   return {ok:true,matches,selected:matches[0]??null,notice:'Simulación de un miembro normal sin excepciones. No ejecuta acciones ni modifica contadores.'};
+ });
+ app.post('/api/advanced/reactions',async request=>{
+  const b=bodyOf(request);
+  const v=z.discriminatedUnion('action',[
+   z.object({action:z.literal('mute'),userId:id,minutes:z.number().int().min(1).max(43200)}),
+   z.object({action:z.literal('remove'),userId:id,messageId:id}),
+   z.object({action:z.literal('clear'),userId:id}),
+  ]).parse(b);
+  const {ctx}=await access(request,parseChatId(b.chatId),'reactions',v.action==='mute'?'can_restrict_members':'can_delete_messages');
+  const identity=await apiIdentityForChat(ctx.chatId,ctx.api,ctx.botId);
+  const target={userId:v.userId,name:String(v.userId)};
+  if(v.action==='mute')await muteReactions({...ctx,...identity},target,v.minutes*60);
+  else await removeReactions({...ctx,...identity},target,v.action==='remove'?v.messageId:undefined);
+  return {ok:true};
+ });
+ app.post('/api/advanced/invites',async (request,reply)=>{
+  reply.header('Cache-Control','no-store');
+  const b=bodyOf(request);
+  const v=z.discriminatedUnion('action',[
+   z.object({action:z.literal('list')}),
+   z.object({action:z.literal('create'),name:z.string().trim().min(1).max(32),hours:z.number().int().min(1).max(168),memberLimit:z.number().int().min(1).max(99999),operationId:z.string().uuid()}),
+   z.object({action:z.literal('revoke'),inviteId:z.string().uuid()}),
+  ]).parse(b);
+  const {ctx}=await access(request,parseChatId(b.chatId),v.action==='create'?'temporaryInvites':undefined,'can_invite_users');
+  if(v.action==='list')return {ok:true,invites:await listGroupInvites(ctx.chatId)};
+  const identity=await apiIdentityForChat(ctx.chatId,ctx.api,ctx.botId);
+  if(v.action==='create')await createGroupInvite({...ctx,...identity},v);
+  else await revokeGroupInvite({...ctx,...identity},v.inviteId);
+  return {ok:true,invites:await listGroupInvites(ctx.chatId)};
+ });
+ app.post('/api/advanced/bulk',async request=>{
+  const b=bodyOf(request);
+  const v=z.discriminatedUnion('action',[
+   z.object({action:z.literal('preview'),input:bulkInputSchema}),
+   z.object({action:z.literal('apply'),token:z.string().max(4000)}),
+  ]).parse(b);
+  const {ctx}=await access(request,parseChatId(b.chatId),'bulkModeration','can_restrict_members');
+  const identity=await apiIdentityForChat(ctx.chatId,ctx.api,ctx.botId);
+  if(v.action==='preview')return {ok:true,...await previewBulkModeration({...ctx,...identity},v.input)};
+  return {ok:true,...await applyBulkModeration({...ctx,...identity},v.token)};
+ });
+ app.post('/api/advanced/delegates',async request=>{
+  const b=bodyOf(request);
+  const v=z.discriminatedUnion('action',[
+   z.object({action:z.literal('grant'),userId:id,hours:z.number().int().min(1).max(168),scopes:z.array(z.enum(DELEGATE_SCOPES)).min(1).max(2)}),
+   z.object({action:z.literal('revoke'),userId:id}),
+  ]).parse(b);
+  const {ctx}=await access(request,parseChatId(b.chatId),v.action==='grant'?'delegatedRoles':undefined);
+  const identity=await apiIdentityForChat(ctx.chatId,ctx.api,ctx.botId);
+  await manageDelegate({...ctx,...identity},v.userId,v.action==='grant'?v:undefined);
+  return {ok:true,roles:await listDelegates(ctx.chatId)};
+ });
+ app.get('/api/advanced/delegates',async request=>{
+  const q=request.query as Record<string,unknown>;const {ctx}=await access(request,parseChatId(q.chat_id));
+  return {ok:true,roles:await listDelegates(ctx.chatId)};
  });
  app.post('/api/advanced/topic',async request=>{
   const b=bodyOf(request);const {chat,auth}=await access(request,parseChatId(b.chatId),'topics','can_manage_topics');const v=z.object({action:z.enum(['create','rename','close','reopen']),threadId:z.number().int().positive().optional(),name:z.string().min(1).max(128).optional(),operationId:z.string().uuid()}).parse(b);
@@ -131,7 +192,7 @@ export function registerAdvancedRoutes(app:FastifyInstance,bot:Bot<AppContext>):
   if(action==='propose'){await assertActorRight(ctx,'can_restrict_members');await proposeCase(chat.chat_id,auth.user.id,id.parse(b.userId),z.string().min(5).max(500).parse(b.reason),z.number().int().min(60).max(2592000).parse(b.seconds));}
   if(action==='review')await reviewCase(bot.api,bot.botInfo.id,chat,auth.user.id,id.parse(b.caseId),z.enum(['apply','skip','undo']).parse(b.decision));
   if(action==='publish')await publishAllianceProfile(chat.chat_id,auth.user.id);
-  if(action==='preview'){const a=await allianceOverview(chat.chat_id,auth.user.id);if(!a?.profile)throw new ApiError(404,'No hay perfil.');const current=await advancedConfig(chat.chat_id);const target={...a.profile,topics:current.settings.topics,silent:current.settings.silent,observation:current.settings.observation};return {ok:true,diff:settingsDiff(current.settings,target),version:current.version,profileVersion:a.profileVersion};}
+  if(action==='preview'){const a=await allianceOverview(chat.chat_id,auth.user.id);if(!a?.profile)throw new ApiError(404,'No hay perfil.');const current=await advancedConfig(chat.chat_id);const target={...a.profile,topics:current.settings.topics,silent:current.settings.silent,observation:current.settings.observation,richArticles:current.settings.richArticles,discussion:current.settings.discussion};return {ok:true,diff:settingsDiff(current.settings,target),version:current.version,profileVersion:a.profileVersion};}
   if(action==='adopt'){await assertActorRight(ctx,'can_restrict_members');await adoptAllianceProfile(chat,auth.user.id,z.number().int().min(0).parse(b.version),z.number().int().positive().parse(b.profileVersion));}
   return {ok:true,alliance:await allianceOverview(chat.chat_id,auth.user.id)};
  });

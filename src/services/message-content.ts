@@ -37,9 +37,11 @@ export function messageContent(message:Partial<Message>):MessageContent{
  const result={text,links:[...links],types};cache.set(message,result);return result;
 }
 /** Creates only local examples; it never calls Telegram or interprets example text as markup. */
-export function contentExample(text:string,type:string):Partial<Message>{
+export function contentExample(text:string,type:string,origin?:'person'|'bot'|'hidden_user'|'chat'|'channel'):Partial<Message>{
  const m:Record<string,unknown>={text,message_id:0,entities:[]};
- if(type==='gif')m.animation={};else if(type==='forward')m.forward_origin={};else if(type==='anonymous')m.sender_chat={};
+ if(type==='gif')m.animation={};else if(type==='forward'){
+  m.forward_origin=origin==='person'||origin==='bot'?{type:'user',sender_user:{is_bot:origin==='bot'}}:{type:origin};
+ }else if(type==='anonymous')m.sender_chat={};
  else if(type==='rich_message'){delete m.text;m.rich_message={blocks:[{type:'paragraph',text}]};}
  else if(type==='guest_bot'){m.from={id:999,is_bot:true,first_name:'Example'};m.guest_bot_caller_user={id:998,is_bot:false,first_name:'Example'};}
  else if(type==='spoiler')m.has_media_spoiler=true;

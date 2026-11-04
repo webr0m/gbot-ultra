@@ -4,6 +4,33 @@
   const G = window.GBot;
   if (!G) return;
   const esc = G.esc;
+  G.articleEditor = {
+    fields(extras) {
+      return field("Encabezado", input("articleHeading", "text", extras?.heading || "", 'maxlength="120"')) +
+        field("Tabla · una fila por línea, separa columnas con |",
+          `<textarea class="input" name="articleTable" rows="4" maxlength="7300" placeholder="Horario | Actividad">${esc(extras?.table?.map(row => row.join(" | ")).join("\n") || "")}</textarea>`) +
+        field("Galería · hasta 6 enlaces HTTPS directos a fotos, uno por línea",
+          `<textarea class="input" name="articleGallery" rows="4" maxlength="3010">${esc(extras?.gallery?.join("\n") || "")}</textarea>`);
+    },
+    read(data) {
+      const lines = name => String(data.get(name) || "").split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      const table = lines("articleTable").map(row => row.split("|").map(cell => cell.trim()));
+      const gallery = lines("articleGallery");
+      if (table.length > 10 || table.some(row => row.length < 2 || row.length > 6 || row.length !== table[0].length || row.some(cell => cell.length > 120))) {
+        throw new Error("Usa hasta 10 filas de 2 a 6 columnas iguales, con un máximo de 120 caracteres por celda.");
+      }
+      if (gallery.length > 6 || gallery.some(value => {
+        try {const url = new URL(value);return url.protocol !== "https:" || url.username || url.password || value.length > 500;}
+        catch {return true;}
+      })) throw new Error("Usa hasta 6 enlaces HTTPS directos a fotos.");
+      return { heading: String(data.get("articleHeading") || "").trim(), table, gallery };
+    },
+    preview(content, extras) {
+      const table = extras?.table?.length ? `<div class="table-scroll"><table class="compare-table"><tbody>${extras.table.map((row,i) => `<tr>${row.map(cell => i ? `<td>${esc(cell)}</td>` : `<th scope="col">${esc(cell)}</th>`).join("")}</tr>`).join("")}</tbody></table></div>` : "";
+      const gallery = extras?.gallery?.length ? `<p>Galería · ${extras.gallery.length} fotos por URL</p>` : "";
+      return `<article>${extras?.heading ? `<h3>${esc(extras.heading)}</h3>` : ""}<pre class="automation-preview">${esc(content)}</pre>${table}${gallery}</article>`;
+    },
+  };
   let session = null,
     sequence = 0;
   const status = {
@@ -91,7 +118,7 @@
     const d = session.data;
     sheet(
       "Publicaciones y filtro visual",
-      `<div class="adv-intro"><span class="badge">${esc(d.tier.toUpperCase())}</span><h3>Más tiempo para tu comunidad.</h3><p>Publica a tu hora y revisa fotos desde el mismo lugar. Cada grupo conserva su propia configuración.</p></div><div class="adv-grid"><button class="adv-feature" type="button" data-action="automation-posts"><span><strong>Publicaciones programadas</strong><small>Texto, botón, temas y repetición diaria o semanal.</small></span><span class="adv-status">${d.features.publications ? "ABRIR" : "PRO"}</span></button><button class="adv-feature" type="button" data-action="automation-visual"><span><strong>Filtro visual NSFW</strong><small>Fotos · revisión o eliminación. Desactivado hasta que lo autorices.</small></span><span class="adv-status">${d.visual.config.enabled ? "ACTIVO" : d.features.visual ? "CONFIGURAR" : "PRO"}</span></button></div><p>Pro: hasta 20 programaciones y 100 fotos nuevas al día por grupo. Ultra: 100 y 300. </p>`,
+      `<div class="adv-intro"><span class="badge">${esc(d.tier.toUpperCase())}</span><h3>Más tiempo para tu comunidad.</h3><p>Publica a tu hora y revisa fotos desde el mismo lugar. Cada grupo conserva su propia configuración.</p></div><div class="adv-grid"><button class="adv-feature" type="button" data-action="automation-posts"><span><strong>Publicaciones programadas</strong><small>Texto o artículo, botón, temas y repetición diaria o semanal.</small></span><span class="adv-status">${d.features.publications ? "ABRIR" : "PRO"}</span></button><button class="adv-feature" type="button" data-action="automation-visual"><span><strong>Filtro visual NSFW</strong><small>Fotos · revisión o eliminación. Desactivado hasta que lo autorices.</small></span><span class="adv-status">${d.visual.config.enabled ? "ACTIVO" : d.features.visual ? "CONFIGURAR" : "PRO"}</span></button></div><p>Pro: hasta 20 programaciones y 100 fotos nuevas al día por grupo. Ultra: 100 y 300. </p>`,
     );
   }
   async function open() {
@@ -121,7 +148,7 @@
     const d = session.data;
     sheet(
       "Publicaciones programadas",
-      `${button("← Volver", "home")}<p>El texto se envía sin formato. Si el hosting se reactiva mediante el cron de respaldo, la publicación puede demorarse hasta cinco minutos.</p>${d.features.publications ? button("Crear publicación", "new") : "<p>Crear o reprogramar requiere Pro o Ultra. Puedes pausar y archivar lo existente.</p>"}${d.posts.length ? d.posts.map((p) => `<article class="card"><div class="automation-meta"><span class="badge">${esc(status[p.state] || p.state)}</span><span>${esc(recurrence[p.recurrence])}</span></div><h3>${esc(p.title)}</h3><p>${esc(date(p.next_run_at, p.timezone))} · ${esc(p.timezone)}${p.thread_id ? " · Tema " + esc(p.thread_id) : ""}</p><pre class="automation-preview">${esc(p.content)}</pre>${p.last_error ? `<p role="status">${esc(p.last_error)}</p>` : ""}<div class="adv-tools">${p.state !== "posting" ? `${d.features.publications ? button(p.state === "active" ? "Editar" : "Reprogramar", "edit", `data-id="${p.id}"`) : ""}${p.state === "active" ? button("Pausar", "pause", `data-id="${p.id}"`) : ""}${button("Archivar", "archive", `data-id="${p.id}"`)}` : "<p>Espera a que termine el envío.</p>"}</div></article>`).join("") : '<div class="card"><h3>Tu próxima publicación empieza aquí.</h3><p>Prepara un aviso, revisa su vista previa y elige cuándo publicarlo.</p></div>'}<details class="card"><summary>Historial de los últimos 50 envíos</summary>${d.runs.length ? d.runs.map((r) => `<p><strong>${esc(r.title)}</strong> · ${esc(status[r.state] || r.state)}<br>${esc(date(r.scheduled_at))}${r.message_id ? " · Mensaje " + esc(r.message_id) : ""}${r.detail ? "<br>" + esc(r.detail) : ""}</p>`).join("") : "<p>Aún no hay envíos.</p>"}</details>`,
+      `${button("← Volver", "home")}<p>Puedes programar texto plano o un artículo con tabla y galería. Si el hosting se reactiva mediante el cron de respaldo, la publicación puede demorarse hasta cinco minutos.</p>${d.features.publications ? button("Crear publicación", "new") : "<p>Crear o reprogramar requiere Pro o Ultra. Puedes pausar y archivar lo existente.</p>"}${d.posts.length ? d.posts.map((p) => `<article class="card"><div class="automation-meta"><span class="badge">${esc(status[p.state] || p.state)}</span><span>${esc(recurrence[p.recurrence])}</span></div><h3>${esc(p.title)}</h3><p>${esc(date(p.next_run_at, p.timezone))} · ${esc(p.timezone)}${p.thread_id ? " · Tema " + esc(p.thread_id) : ""}</p>${G.articleEditor.preview(p.content,p.article)}${p.last_error ? `<p role="status">${esc(p.last_error)}</p>` : ""}<div class="adv-tools">${p.state !== "posting" ? `${d.features.publications ? button(p.state === "active" ? "Editar" : "Reprogramar", "edit", `data-id="${p.id}"`) : ""}${p.state === "active" ? button("Pausar", "pause", `data-id="${p.id}"`) : ""}${button("Archivar", "archive", `data-id="${p.id}"`)}` : "<p>Espera a que termine el envío.</p>"}</div></article>`).join("") : '<div class="card"><h3>Tu próxima publicación empieza aquí.</h3><p>Prepara un aviso, revisa su vista previa y elige cuándo publicarlo.</p></div>'}<details class="card"><summary>Historial de los últimos 50 envíos</summary>${d.runs.length ? d.runs.map((r) => `<p><strong>${esc(r.title)}</strong> · ${esc(status[r.state] || r.state)}<br>${esc(date(r.scheduled_at))}${r.message_id ? " · Mensaje " + esc(r.message_id) : ""}${r.detail ? "<br>" + esc(r.detail) : ""}</p>`).join("") : "<p>Aún no hay envíos.</p>"}</details>`,
     );
   }
   G.registerAction("automation-posts", posts);
@@ -148,7 +175,7 @@
     session.edit = p ? { id: p.id, version: p.version } : {};
     sheet(
       p ? "Reprogramar publicación" : "Nueva publicación",
-      `${button("← Publicaciones", "posts")}<form data-form="automation-preview">${field("Nombre interno", input("title", "text", p?.title || "", 'required maxlength="80"'))}${field("Texto de la publicación", `<textarea class="input" name="content" rows="6" maxlength="4000" required>${esc(p?.content || "")}</textarea>`)}${field("Fecha y hora local", input("localTime", "datetime-local", p?.state === "active" ? p.local_time : initial, "required"))}${field("Zona horaria IANA", input("timezone", "text", zone, 'required maxlength="80" placeholder="America/Santiago"'))}${field(
+      `${button("← Publicaciones", "posts")}<form data-form="automation-preview">${field("Nombre interno", input("title", "text", p?.title || "", 'required maxlength="80"'))}${field("Texto de la publicación", `<textarea class="input" name="content" rows="6" maxlength="4000" required>${esc(p?.content || "")}</textarea>`)}<details ${p?.article ? "open" : ""}><summary>Formato de artículo</summary><label class="adv-check"><input type="checkbox" name="articleEnabled" ${p?.article ? "checked" : ""}> Enviar como artículo</label>${G.articleEditor.fields(p?.article)}</details>${field("Fecha y hora local", input("localTime", "datetime-local", p?.state === "active" ? p.local_time : initial, "required"))}${field("Zona horaria IANA", input("timezone", "text", zone, 'required maxlength="80" placeholder="America/Santiago"'))}${field(
         "Repetición",
         `<select class="input" name="recurrence">${Object.entries(recurrence)
           .map(
@@ -171,6 +198,7 @@
         input: {
           title: fd.get("title"),
           content: fd.get("content"),
+          article: fd.has("articleEnabled") ? G.articleEditor.read(fd) : null,
           timezone: fd.get("timezone"),
           localTime: fd.get("localTime"),
           recurrence: fd.get("recurrence"),
@@ -185,7 +213,7 @@
     session.pending = body;
     sheet(
       "Revisar antes de programar",
-      `<span class="badge">${esc(recurrence[r.input.recurrence])}</span><h3>${esc(r.input.title)}</h3><pre class="automation-preview">${esc(r.input.content)}</pre>${r.input.buttonUrl ? `<p>Botón: ${esc(r.input.buttonLabel)}<br><span class="mono">${esc(r.input.buttonUrl)}</span></p>` : ""}<p><strong>${esc(date(r.firstRun, r.input.timezone))}</strong><br>${esc(r.input.timezone)} · ${r.input.threadId ? "Tema " + esc(r.input.threadId) : "Destino general"}</p><p>${esc(r.notice)}</p><form data-form="automation-save"><div class="sheet-actions"><button class="btn btn-primary" type="submit">Confirmar programación</button>${button("Cancelar", "posts")}</div></form>`,
+      `<span class="badge">${esc(recurrence[r.input.recurrence])}</span><h3>${esc(r.input.title)}</h3>${G.articleEditor.preview(r.input.content,r.input.article)}${r.input.buttonUrl ? `<p>Botón: ${esc(r.input.buttonLabel)}<br><span class="mono">${esc(r.input.buttonUrl)}</span></p>` : ""}<p><strong>${esc(date(r.firstRun, r.input.timezone))}</strong><br>${esc(r.input.timezone)} · ${r.input.threadId ? "Tema " + esc(r.input.threadId) : "Destino general"}</p><p>${esc(r.notice)}</p><form data-form="automation-save"><div class="sheet-actions"><button class="btn btn-primary" type="submit">Confirmar programación</button>${button("Cancelar", "posts")}</div></form>`,
     );
   });
   G.registerForm("automation-save", async () => {

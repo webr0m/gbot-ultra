@@ -14,6 +14,7 @@ import { invalidateChat, loadChat } from "../services/chat-cache.js";
 import { isPremium, activatePremium, getPlan, parseInvoicePayload } from "../services/premium.js";
 import { raidJoin, beginJoinGate, scopeExemptions, runtimeAdvanced } from '../services/advanced-engine.js';
 import { sendCaptcha } from "../services/captcha.js";
+import { applyMemberProbation } from "../services/member-probation.js";
 import { sendGoodbye, sendWelcome } from "../services/welcome.js";
 import { logger } from "../logger.js";
 import { formatDate } from "../utils/date.js";
@@ -198,10 +199,14 @@ export function registerEvents(bot: Bot<AppContext>): void {
         }
 
         if(await raidJoin(ctx.api,chat,ctx.chat,user,settings,ctx.app.botId))continue;
-        await sendWelcome(ctx.api, ctx.chat, user, settings, memberCount,(await runtimeAdvanced(chat)).topics.welcomeThreadId);
+        let pending = false;
         if (settings.captcha.enabled && !config.ownerIds.has(user.id) && !(await scopeExemptions(chat,user.id)).includes('captcha')) {
-          await sendCaptcha(ctx.api, ctx.chat, user, settings);
+          pending = await sendCaptcha(ctx.api, ctx.chat, user, settings);
         }
+        if (!pending) await applyMemberProbation(ctx.api, chat, user.id, message.date).catch(error =>
+          logger.warn({ err: error, chatId: chat.chat_id, userId: user.id }, tr("No se pudo aplicar el periodo inicial")));
+        const advanced = await runtimeAdvanced(chat);
+        await sendWelcome(ctx.api, ctx.chat, user, settings, memberCount, advanced.topics.welcomeThreadId, advanced.richArticles.welcome);
       } catch (error) {
         logger.warn({ err: error, chatId: chat.chat_id, userId: user.id }, tr("Error procesando entrada"));
       }
@@ -248,6 +253,13 @@ export function registerEvents(bot: Bot<AppContext>): void {
   bot.on("chat_join_request", async (ctx) => {
     const request = ctx.chatJoinRequest;
     if (!request) return;
+    if (request.query_id) {
+      try {
+        await ctx.api.raw.answerChatJoinRequestQuery({ chat_join_request_query_id: request.query_id, result: "queue" });
+      } catch (error) {
+        logger.warn({ err: error, chatId: request.chat.id }, tr("No se pudo poner en cola la solicitud de ingreso"));
+      }
+    }
     const chat = request.chat;
     if (!isGroupChat(chat)) return;
     const chatRow = ctx.app.chatRow ?? (await getChat(chat.id));

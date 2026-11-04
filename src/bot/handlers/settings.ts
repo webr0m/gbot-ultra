@@ -11,6 +11,7 @@ import {
 import { invalidateBlacklist } from "../../services/antispam.js";
 import { patchChatSettings, settingsOf } from "../../services/chat-cache.js";
 import { sendWelcome } from "../../services/welcome.js";
+import { runtimeAdvanced } from "../../services/advanced-engine.js";
 import {
   DEFAULT_SETTINGS,
   applySettingsPatch,
@@ -148,7 +149,8 @@ export function registerSettings(bot: Bot<AppContext>): void {
   bot.command("testwelcome", async (ctx) => {
     if (!(await ensureGroupAdmin(ctx))) return;
     if (!ctx.chat || !ctx.from) return;
-    await sendWelcome(ctx.api, ctx.chat, ctx.from, ctx.app.settings);
+    const advanced = ctx.app.chatRow ? await runtimeAdvanced(ctx.app.chatRow) : undefined;
+    await sendWelcome(ctx.api, ctx.chat, ctx.from, ctx.app.settings, undefined, advanced?.topics.welcomeThreadId, advanced?.richArticles.welcome);
     await replyTemp(ctx, tr("👋 Bienvenida de prueba enviada."), { seconds: 10 });
   });
 

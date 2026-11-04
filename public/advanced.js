@@ -7,6 +7,10 @@
   const definitions={
     raid:{title:'Antirraids',description:'Protección temporal ante ingresos masivos.',fields:[['enabled','Activar detección','check'],['threshold','Ingresos para activar','number',3,500],['windowSeconds','Ventana en segundos','number',10,300],['durationSeconds','Duración de protección (segundos)','number',60,86400],['action','Acción','select',['captcha','mute','ban']],['sanctionSeconds','Duración de sanción (segundos)','number',60,86400]]},
     locks:{title:'Contenido permitido',description:'Una sola acción por mensaje. Los administradores y usuarios exceptuados conservan sus excepciones.',fields:[['enabled','Activar bloqueos','check'],['types','Tipos bloqueados','types'],['action','Acción','select',['delete','warn','mute','ban']],['durationSeconds','Duración de sanción (segundos)','number',60,2592000]]},
+    probation:{title:'Periodo inicial',description:'Solo en supergrupos. Limita el envío de multimedia, stickers y encuestas después del ingreso o la verificación. Conserva las restricciones individuales existentes.',fields:[['enabled','Activar periodo inicial','check'],['minutes','Duración desde el ingreso (minutos)','number',1,10080]]},
+    forwarding:{title:'Reenvíos por origen',description:'Elige una acción por origen. Telegram identifica por separado a los autores con identidad oculta.',fields:[['actions','Acción por origen','origins'],['durationSeconds','Duración de la sanción (segundos)','number',60,2592000]]},
+    textLimits:{title:'Patrones y longitud',description:'Una regla por línea. Usa * entre fragmentos y && para exigir varios términos en cualquier orden.',fields:[['patterns','Patrones','textarea',2000],['maxLength','Máximo de caracteres visibles (0 = sin límite)','number',0,100000],['action','Acción','select',['delete','warn','mute','ban']],['durationSeconds','Duración de la sanción (segundos)','number',60,2592000]]},
+    discussion:{title:'Comentario del canal vinculado',description:'Publica una respuesta automática por cada nueva entrada del canal vinculado que Telegram reenvíe al grupo de discusión.',fields:[['enabled','Activar comentarios automáticos','check'],['text','Texto del comentario','textarea',1000]]},
     warningExpiry:{title:'Caducidad de advertencias',description:'El vencimiento se fija al crear nuevas advertencias. El historial se conserva.',fields:[['days','Días de vigencia (0 = sin vencimiento)','number',0,365]]},
     night:{title:'Modo nocturno',description:'Guarda y restaura permisos anteriores. El respaldo del hosting puede tardar hasta el siguiente cron de cinco minutos.',fields:[['enabled','Activar horario','check'],['timezone','Zona horaria IANA','text'],['start','Hora de cierre','time'],['end','Hora de apertura','time'],['days','Días de inicio del horario','days']]},
     filters:{title:'Respuestas por frases',description:'Activa las respuestas creadas en Contenido avanzado. Cada una tiene un intervalo mínimo.',fields:[['enabled','Activar respuestas','check']]},
@@ -16,8 +20,9 @@
     richNotes:{title:'Notas enriquecidas',description:'Permite texto, multimedia, botones y entrega privada. Guarda un medio respondiendo con /saverich nombre en Telegram.',fields:[['enabled','Activar notas enriquecidas','check']]},
     observation:{title:'Modo de observación',description:'Registra lo que harían las reglas automáticas sin ejecutar sus sanciones. Los baneos globales existentes mantienen su política.',fields:[['enabled','Observar sin sancionar','check']]},
   };
+  const origins={person:'Personas',bot:'Bots',hidden_user:'Autor con identidad oculta',chat:'Grupos',channel:'Canales'};
   const types={sticker:'Stickers',gif:'GIF',voice:'Notas de voz',audio:'Audios',video:'Vídeos',photo:'Fotos',document:'Archivos',forward:'Reenvíos',invite:'Enlaces de Telegram',anonymous:'Publicaciones como canal',poll:'Encuestas',rich_message:'Mensajes enriquecidos',guest_bot:'Bots invitados',live_photo:'Live Photos',story:'Historias',spoiler:'Spoilers',custom_emoji:'Emojis personalizados',giveaway:'Sorteos',external_reply:'Citas de otros chats'};
-  const labels={delete:'Borrar',warn:'Advertir',mute:'Silenciar',ban:'Banear',unban:'Retirar baneo global','cas-allow':'Exceptuar de CAS','cas-remove':'Quitar excepción de CAS',create:'Crear',rename:'Renombrar',close:'Cerrar',reopen:'Reabrir',captcha:'Captcha',button:'Botón',math:'Matemático',word:'Palabra',exact:'Frase exacta',prefix:'Inicio de frase',apply:'Aplicar en este grupo',skip:'No aplicar',undo:'Revertir en este grupo'};
+  const labels={allow:'Permitir',delete:'Borrar',warn:'Advertir',mute:'Silenciar',ban:'Banear',unban:'Retirar baneo global','cas-allow':'Exceptuar de CAS','cas-remove':'Quitar excepción de CAS',create:'Crear',rename:'Renombrar',close:'Cerrar',reopen:'Reabrir',captcha:'Captcha',button:'Botón',math:'Matemático',word:'Palabra',exact:'Frase exacta',prefix:'Inicio de frase',apply:'Aplicar en este grupo',skip:'No aplicar',undo:'Revertir en este grupo',...origins};
   const button=(text,action,attrs='')=>`<button type="button" class="btn btn-secondary" data-action="${action}" ${attrs}>${esc(text)}</button>`;
   const field=(label,input)=>`<label class="field"><span class="field-label">${esc(label)}</span>${input}</label>`;
   const input=(name,type='text',value='',extra='')=>`<input class="input" name="${esc(name)}" type="${type}" value="${esc(value)}" ${extra}>`;
@@ -47,7 +52,7 @@
     if(!current())return;
     const d=session.data;
     const cards=d.features.filter(f=>definitions[f.key]).map(f=>{
-      const def=definitions[f.key],s=d.settings[f.key],active=s.enabled??(s.days>0||s.welcomeThreadId>0||s.logThreadId>0);
+      const def=definitions[f.key],s=d.settings[f.key],active=s.enabled??(s.days>0||s.welcomeThreadId>0||s.logThreadId>0||(s.actions&&Object.keys(s.actions).length)||s.patterns||s.maxLength);
       return `<button class="adv-feature" type="button" data-action="advanced-section" data-key="${f.key}"><span><strong>${esc(def.title)}</strong><small>${esc(def.description)}</small></span><span class="adv-status">${esc(f.allowed?(active?'Activo':'Configurar'):f.tier.toUpperCase())}</span></button>`;
     }).join('');
     sheet('Centro Premium',`<div class="adv-intro"><span class="badge">${esc(d.tier.toUpperCase())}</span><h3>Protección que puedes ajustar.</h3><p>Activa solo las reglas que necesite este grupo. Cada cambio conserva su versión.</p></div><div class="adv-grid">${cards}</div><div class="adv-tools">${button('Usuarios de confianza','advanced-trust')}${button('Contenido avanzado','advanced-content')}${button('Importar e historial','advanced-transfer')}${button('Gestionar temas','advanced-topics')}${button('Alianzas GBot','advanced-alliance')}${button('Simular reglas','advanced-simulate')}${button('Publicaciones y filtro visual','automation-open')}${button('Asistente y marca propia','ultra-open')}</div><div class="card"><h4>Planes disponibles</h4>${d.tiers.map(t=>`<p><strong>${esc(t.label)}</strong> · ${esc(t.description)}${t.available?'':' · Venta aún no disponible.'}</p>`).join('')}</div>${d.operations.length?`<div class="card"><h4>Operaciones por revisar</h4><p>Una respuesta de Telegram pudo perderse. Revisa el registro antes de repetir.</p>${d.operations.map(o=>`<p class="mono">${esc(o.key)} · ${esc(o.state)}</p>`).join('')}</div>`:''}`);
@@ -57,6 +62,10 @@
   function withGlobalInfo(){
     originalOverview();if(!current())return;const d=session.data;
     document.querySelector('.adv-center')?.insertAdjacentHTML('afterbegin',`<div class="card"><h4>Protección global · Gratis</h4><p>Baneo global propio y CAS en todos los planes. CAS: ${d.cas?.enabled?'activo':'sin configurar'}.</p><a href="https://cas.chat" target="_blank" rel="noopener">Powered by CAS ↗</a><div class="adv-tools">${button('Consultar usuario','advanced-cas-check')}${d.developer?button('Gestionar baneos globales','advanced-global'):''}</div></div>`);
+    document.querySelector('.adv-tools [data-action="advanced-content"]')?.insertAdjacentHTML('afterend',
+      button('Reacciones · Pro','advanced-reactions')+button('Artículos · Pro','advanced-articles')+
+      button('Invitaciones · Pro','advanced-invites')+button('Moderación por lotes · Pro','advanced-bulk')+
+      button('Roles temporales · Ultra','advanced-delegates'));
   }
   G.registerAction('advanced-open',async()=>{
     const chatId=G.state.chat?.id;if(!chatId)return;const req=++sequence;
@@ -85,6 +94,8 @@
     const fields=def.fields.map(([name,label,type,min,max])=>{
       if(type==='check')return check(name,label,s[name]);
       if(type==='types')return `<fieldset><legend>${label}</legend>${Object.entries(types).map(([value,title])=>check(name,title,s[name].includes(value),value)).join('')}</fieldset>`;
+      if(type==='origins')return `<fieldset><legend>${label}</legend>${Object.entries(origins).map(([value,title])=>field(title,select('origin_'+value,['allow','delete','warn','mute','ban'],s[name][value]||'allow'))).join('')}</fieldset>`;
+      if(type==='textarea')return field(label,`<textarea class="input" name="${name}" maxlength="${min}" rows="5">${esc(s[name])}</textarea>`);
       if(type==='days')return `<fieldset><legend>${label}</legend>${['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'].map((title,n)=>check(name,title,s[name].includes(n),n)).join('')}</fieldset>`;
       return field(label,type==='select'?select(name,min,s[name]):input(name,type,s[name],type==='number'?`min="${min}" max="${max}" required`: 'required'));
     }).join('');
@@ -92,10 +103,148 @@
   });
   G.registerForm('advanced-settings',async f=>{
     if(!current())return;const key=f.dataset.section,d=new FormData(f),settings=structuredClone(session.data.settings);
-    for(const [name,,type]of definitions[key].fields)settings[key][name]=type==='check'?d.has(name):type==='types'?d.getAll(name):type==='days'?d.getAll(name).map(Number):type==='number'?Number(d.get(name)):String(d.get(name));
+    for(const [name,,type]of definitions[key].fields){
+      if(type==='origins'){
+        settings[key][name]=Object.fromEntries(Object.keys(origins).map(origin=>[origin,d.get('origin_'+origin)]).filter(([,action])=>action!=='allow'));
+        continue;
+      }
+      settings[key][name]=type==='check'?d.has(name):type==='types'?d.getAll(name):type==='days'?d.getAll(name).map(Number):type==='number'?Number(d.get(name)):String(d.get(name));
+    }
     const original=session,version=G.state.sheetVersion;
     await G.api.patch('/api/advanced',{chatId:original.chatId,settings,version:original.data.version});
     if(session!==original||G.state.chat?.id!==original.chatId||G.state.sheetVersion!==version)return;await finish();
+  });
+  G.registerAction('advanced-reactions',()=>{
+    if(!current()||!gate('reactions'))return;
+    sheet('Moderación de reacciones',`<p>Silencia solo las reacciones de un miembro o retira las que ya agregó.</p><div class="adv-tools">${button('Silenciar','advanced-reaction-edit','data-kind="mute"')}${button('Retirar de un mensaje','advanced-reaction-edit','data-kind="remove"')}${button('Retirar recientes','advanced-reaction-edit','data-kind="clear"')}${button('Volver','advanced-home')}</div>`);
+  });
+  const reactionTitles={mute:'Silenciar reacciones',remove:'Retirar reacciones de un mensaje',clear:'Retirar reacciones recientes'};
+  G.registerAction('advanced-reaction-edit',t=>{
+    const kind=t.dataset.kind;if(!current()||!gate('reactions')||!reactionTitles[kind])return;
+    const help=kind==='clear'?'<p>Telegram permite retirar hasta 10.000 reacciones recientes de esta persona en el grupo.</p>':'';
+    const detail=kind==='mute'?field('Duración en minutos',input('minutes','number',60,'min="1" max="43200" required')):kind==='remove'?field('ID del mensaje en este grupo',input('messageId','number','','min="1" required')):'';
+    sheet(reactionTitles[kind],`${help}<form data-form="advanced-reaction" data-kind="${kind}">${field('ID de la persona',input('userId','number','','min="1" required'))}${detail}<div class="sheet-actions"><button class="btn btn-primary" type="submit">Revisar acción</button>${button('Volver','advanced-reactions')}</div></form>`);
+  });
+  G.registerForm('advanced-reaction',f=>{
+    if(!current())return;
+    const action=f.dataset.kind,d=new FormData(f),userId=Number(d.get('userId')),chatId=session.chatId;
+    const body={action,userId};
+    if(action==='mute')body.minutes=Number(d.get('minutes'));
+    if(action==='remove')body.messageId=Number(d.get('messageId'));
+    G.openConfirm({title:reactionTitles[action],text:`Usuario ${userId} · ${action==='mute'?body.minutes+' minutos':action==='remove'?'Mensaje '+body.messageId:'Hasta 10.000 reacciones en este grupo'}.`,confirmText:'Aplicar',onConfirm:async()=>{
+      if(!current()||session.chatId!==chatId)return;
+      await actionPost('reactions',body);await finish('Moderación de reacciones aplicada.');
+    }});
+  });
+  const articleNames={welcome:'Bienvenida',rules:'Reglas del grupo'};
+  G.registerAction('advanced-articles',()=>{
+    if(!current()||!gate('richArticles'))return;
+    const articles=session.data.settings.richArticles;
+    sheet('Artículos enriquecidos',`<p>Prepara una bienvenida o unas reglas con encabezado, tabla y galería. El texto clásico se conserva para cuando desactives el artículo.</p>${Object.entries(articleNames).map(([key,name])=>`<div class="card"><strong>${esc(name)}</strong><p>${articles[key]?'Artículo activo':'Texto clásico'}</p>${button('Editar artículo','advanced-article-edit',`data-kind="${key}"`)}</div>`).join('')}${button('Volver','advanced-home')}`);
+  });
+  G.registerAction('advanced-article-edit',t=>{
+    const kind=t.dataset.kind;if(!current()||!gate('richArticles')||!articleNames[kind])return;
+    const article=session.data.settings.richArticles[kind];
+    sheet(articleNames[kind],`<form data-form="advanced-article-preview" data-kind="${kind}">${field('Texto del artículo',`<textarea class="input" name="content" rows="6" maxlength="4000" required>${esc(article?.content||'')}</textarea>`)}${G.articleEditor.fields(article?.extras)}<div class="sheet-actions"><button class="btn btn-primary" type="submit">Ver vista previa</button>${button('Volver','advanced-articles')}</div></form>${article?button('Volver al texto clásico','advanced-article-disable',`data-kind="${kind}"`):''}`);
+  });
+  G.registerForm('advanced-article-preview',f=>{
+    if(!current())return;
+    const d=new FormData(f),kind=f.dataset.kind,article={content:String(d.get('content')),extras:G.articleEditor.read(d)};
+    session.pendingArticle={kind,article};
+    sheet('Vista previa · '+articleNames[kind],G.articleEditor.preview(article.content,article.extras)+
+      `<form data-form="advanced-article-save"><div class="sheet-actions"><button class="btn btn-primary" type="submit">Activar artículo</button>${button('Cancelar','advanced-articles')}</div></form>`);
+  });
+  async function saveArticle(kind,article){
+    if(!current())return;
+    const original=session,version=G.state.sheetVersion,settings=structuredClone(original.data.settings);
+    settings.richArticles[kind]=article;
+    await G.api.patch('/api/advanced',{chatId:original.chatId,settings,version:original.data.version});
+    if(session===original&&G.state.sheetVersion===version)await finish();
+  }
+  G.registerForm('advanced-article-save',async()=>{
+    const pending=session?.pendingArticle;if(pending)await saveArticle(pending.kind,pending.article);
+  });
+  G.registerAction('advanced-article-disable',t=>{
+    const kind=t.dataset.kind,chatId=session?.chatId;
+    if(!current()||!articleNames[kind])return;
+    G.openConfirm({title:'Volver al texto clásico',text:'Se quitará el artículo de esta sección.',confirmText:'Desactivar artículo',onConfirm:async()=>{
+      if(session?.chatId===chatId)await saveArticle(kind,null);
+    }});
+  });
+  function inviteList(invites){
+    sheet('Invitaciones temporales',`<p>Enlaces privados creados para este grupo. El cupo limita cuántos miembros que ingresaron por un mismo enlace pueden permanecer a la vez.</p>${allowed('temporaryInvites')?button('Crear enlace','advanced-invite-new'):''}${invites.map(invite=>`<div class="card"><strong>${esc(invite.name)}</strong><p>${esc(G.fmtDateTime(invite.expires_at))} · Cupo ${esc(invite.member_limit)}</p><div class="adv-tools">${button('Copiar enlace','advanced-invite-copy',`data-link="${esc(invite.invite_link)}"`)}${button('Revocar','advanced-invite-revoke',`data-id="${esc(invite.id)}"`)}</div></div>`).join('')||'<p>No hay enlaces activos.</p>'}${button('Volver','advanced-home')}`);
+  }
+  G.registerAction('advanced-invites',async()=>{
+    if(!current())return;
+    inviteList((await actionPost('invites',{action:'list'})).invites);
+  });
+  G.registerAction('advanced-invite-new',()=>{
+    if(!current()||!gate('temporaryInvites'))return;
+    sheet('Crear invitación',form('invite-new',
+      field('Nombre',input('name','text','','required maxlength="32"'))+
+      field('Duración en horas',input('hours','number',24,'min="1" max="168" required'))+
+      field('Cupo',input('memberLimit','number',10,'min="1" max="99999" required')))+button('Volver','advanced-invites'));
+  });
+  G.registerForm('advanced-invite-new',async f=>{
+    const d=new FormData(f),operationId=f.dataset.operationId||(f.dataset.operationId=crypto.randomUUID());
+    const result=await actionPost('invites',{action:'create',name:d.get('name'),hours:Number(d.get('hours')),memberLimit:Number(d.get('memberLimit')),operationId});
+    inviteList(result.invites);
+  });
+  G.registerAction('advanced-invite-copy',async t=>{
+    await navigator.clipboard.writeText(t.dataset.link);G.toast('Enlace copiado.','success');
+  });
+  G.registerAction('advanced-invite-revoke',t=>{
+    const inviteId=t.dataset.id,chatId=session?.chatId;if(!current())return;
+    G.openConfirm({title:'Revocar invitación',text:'Telegram desactivará el enlace.',confirmText:'Revocar',onConfirm:async()=>{
+      if(!current()||session.chatId!==chatId)return;
+      inviteList((await actionPost('invites',{action:'revoke',inviteId})).invites);
+    }});
+  });
+  G.registerAction('advanced-bulk',()=>{
+    if(!current()||!gate('bulkModeration'))return;
+    sheet('Moderación por lotes',`<p>Silencia o banea temporalmente entre 2 y 10 miembros. El panel revisa cada cuenta antes de aplicar la acción.</p><form data-form="advanced-bulk-preview">${field('Acción',select('action',['mute','ban'],'mute'))}${field('IDs separados por espacios o saltos de línea','<textarea class="input" name="ids" rows="4" maxlength="190" required></textarea>')}${field('Duración en minutos',input('minutes','number',60,'min="1" max="43200" required'))}${field('Motivo',input('reason','text','','minlength="3" maxlength="300" required'))}<div class="sheet-actions"><button class="btn btn-primary" type="submit">Revisar miembros</button>${button('Volver','advanced-home')}</div></form>`);
+  });
+  const bulkItems=items=>items.map(item=>`<div class="card"><strong>${esc(item.name)} · ${esc(item.userId)}</strong><p>${esc(item.state==='applied'?'Aplicado':item.detail||(item.allowed?'Elegible':'Omitido'))}</p></div>`).join('');
+  G.registerForm('advanced-bulk-preview',async f=>{
+    const d=new FormData(f),input={action:d.get('action'),userIds:String(d.get('ids')).trim().split(/[\s,]+/).map(Number),minutes:Number(d.get('minutes')),reason:d.get('reason')};
+    const {items,token}=await actionPost('bulk',{action:'preview',input});
+    session.bulkToken=token;
+    sheet('Revisar lote',`<p>${esc(labels[input.action])} · ${input.minutes} minutos · ${esc(input.reason)}</p>${bulkItems(items)}${token?`<form data-form="advanced-bulk-apply"><button class="btn btn-primary" type="submit">Aplicar a ${items.filter(i=>i.allowed).length} elegibles</button></form>`:''}${button('Volver','advanced-bulk')}`);
+  });
+  G.registerForm('advanced-bulk-apply',async()=>{
+    const token=session?.bulkToken;if(!token||!current())return;
+    const {items}=await actionPost('bulk',{action:'apply',token});
+    session.bulkToken=null;
+    sheet('Resultado del lote',bulkItems(items)+button('Volver','advanced-home'));
+  });
+  function delegateList(roles){
+    const actions={delete:'Eliminar mensajes',pin:'Fijar mensajes'};
+    sheet('Roles temporales',`<p>El propietario puede delegar el uso de /teamdelete y /teampin al responder a mensajes de miembros. Cada rol tiene vencimiento y queda registrado.</p>${allowed('delegatedRoles')?button('Asignar rol','advanced-delegate-new'):''}${roles.map(role=>`<div class="card"><strong>Usuario ${esc(role.user_id)}</strong><p>${esc(role.scopes.map(scope=>actions[scope]).join(' · '))} · vence ${esc(G.fmtDateTime(role.expires_at))}</p>${button('Revocar','advanced-delegate-revoke',`data-id="${esc(role.user_id)}"`)}</div>`).join('')||'<p>No hay roles temporales activos.</p>'}${button('Volver','advanced-home')}`);
+  }
+  G.registerAction('advanced-delegates',async()=>{
+    if(!current())return;
+    const original=session,version=G.state.sheetVersion;
+    const {roles}=await G.api.get('/api/advanced/delegates?chat_id='+session.chatId);
+    if(current()&&session===original&&G.state.sheetVersion===version)delegateList(roles);
+  });
+  G.registerAction('advanced-delegate-new',()=>{
+    if(!current()||!gate('delegatedRoles'))return;
+    sheet('Asignar rol temporal',form('delegate-new',field('ID del miembro',input('userId','number','','min="1" required'))+
+      field('Duración en horas',input('hours','number',24,'min="1" max="168" required'))+
+      '<fieldset><legend>Funciones</legend>'+check('scopes','Eliminar mensajes',false,'delete')+
+      check('scopes','Fijar mensajes',false,'pin')+'</fieldset>')+button('Volver','advanced-delegates'));
+  });
+  G.registerForm('advanced-delegate-new',async f=>{
+    const d=new FormData(f),scopes=d.getAll('scopes');
+    if(!scopes.length)throw new Error('Selecciona al menos una función.');
+    delegateList((await actionPost('delegates',{action:'grant',userId:Number(d.get('userId')),hours:Number(d.get('hours')),scopes})).roles);
+  });
+  G.registerAction('advanced-delegate-revoke',t=>{
+    if(!current())return;const chatId=session.chatId,userId=Number(t.dataset.id);
+    G.openConfirm({title:'Revocar rol temporal',text:`La cuenta ${userId} perderá sus funciones delegadas.`,confirmText:'Revocar',onConfirm:async()=>{
+      if(!current()||session.chatId!==chatId)return;
+      delegateList((await actionPost('delegates',{action:'revoke',userId})).roles);
+    }});
   });
   G.registerAction('advanced-raid',async t=>{if(!current()||!gate('raid'))return;await actionPost('raid',{seconds:Number(t.dataset.seconds)});await finish();});
   G.registerAction('advanced-trust',()=>{
@@ -124,7 +273,7 @@
   G.registerForm('advanced-topic',async f=>{const d=Object.fromEntries(new FormData(f));if(d.threadId)d.threadId=Number(d.threadId);else delete d.threadId;if(!d.name)delete d.name;d.operationId=f.dataset.operationId||(f.dataset.operationId=crypto.randomUUID());const result=await actionPost('topic',d);await finish(result.topic?'Tema creado. ID: '+result.topic.message_thread_id:'Tema actualizado.');});
   G.registerAction('advanced-simulate',()=>{
     if(!current()||!gate('observation'))return;
-    sheet('Simular reglas',form('simulate',field('Mensaje de ejemplo','<textarea class="input" name="text" maxlength="4000"></textarea>')+field('Tipo de contenido',select('type',['text',...Object.keys(types)],'text'))+field('Mensajes dentro de la ventana de antiflood',input('messageCount','number',1,'min="1" max="100" required')))+'<div id="advanced-simulation" aria-live="polite"></div>');
+    sheet('Simular reglas',form('simulate',field('Mensaje de ejemplo','<textarea class="input" name="text" maxlength="4000"></textarea>')+field('Tipo de contenido',select('type',['text',...Object.keys(types)],'text'))+field('Origen (para reenvíos)',select('origin',Object.keys(origins),'person'))+field('Mensajes dentro de la ventana de antiflood',input('messageCount','number',1,'min="1" max="100" required')))+'<div id="advanced-simulation" aria-live="polite"></div>');
   });
   G.registerForm('advanced-simulate',async f=>{const version=G.state.sheetVersion,d=Object.fromEntries(new FormData(f));d.messageCount=Number(d.messageCount);const result=await actionPost('simulate',d);if(!current()||G.state.sheetVersion!==version)return;document.getElementById('advanced-simulation').innerHTML=`<div class="card"><strong>${result.selected?'Se aplicaría: '+esc(result.selected.rule)+' → '+esc(result.selected.action):'Sin coincidencias'}</strong><p>${esc(result.notice)}</p></div>`;});
   function differences(diff){return diff.length?diff.map(d=>`<div class="card"><strong>${esc(definitions[d.key]?.title||d.key)}</strong><div class="adv-diff"><div><small>Antes</small><pre>${esc(JSON.stringify(d.before,null,2))}</pre></div><div><small>Después</small><pre>${esc(JSON.stringify(d.after,null,2))}</pre></div></div></div>`).join(''):'<p>No hay cambios.</p>';}
@@ -175,7 +324,8 @@
   G.renderSettings=function(){render();const main=document.getElementById('main');if(!main||!G.state.bootstrap)return;main.insertAdjacentHTML('afterbegin',`<section class="section"><div class="card adv-promo"><span class="badge">NUEVO · PREMIUM</span><h3>Un centro para toda tu protección.</h3><p>Antirraids, contenido, horarios y Alianzas GBot, con controles por nivel.</p>${button('Abrir Centro Premium','advanced-open')}</div></section>`);};
   function demoData(){
     const settings={raid:{enabled:false,threshold:15,windowSeconds:60,durationSeconds:900,action:'captcha',sanctionSeconds:600},locks:{enabled:false,types:[],action:'delete',durationSeconds:600},warningExpiry:{days:30},night:{enabled:false,timezone:'America/Santiago',start:'23:00',end:'07:00',days:[0,1,2,3,4,5,6]},filters:{enabled:false},topics:{welcomeThreadId:0,logThreadId:0},silent:{enabled:false},joinGate:{enabled:false,mode:'math'},richNotes:{enabled:false},observation:{enabled:false}};
-    const tiers={raid:'premium',locks:'premium',trust:'premium',warningExpiry:'premium',night:'pro',filters:'pro',topics:'pro',silent:'pro',joinGate:'pro',richNotes:'pro',transfer:'pro',alliances:'ultra',observation:'ultra'};
+    Object.assign(settings,{probation:{enabled:false,minutes:120},forwarding:{actions:{},durationSeconds:600},textLimits:{patterns:'',maxLength:0,action:'delete',durationSeconds:600},richArticles:{welcome:null,rules:null},discussion:{enabled:false,text:''}});
+    const tiers={raid:'premium',locks:'premium',trust:'premium',warningExpiry:'premium',night:'pro',filters:'pro',topics:'pro',silent:'pro',joinGate:'pro',richNotes:'pro',transfer:'pro',alliances:'ultra',observation:'ultra',probation:'premium',forwarding:'premium',textLimits:'premium',richArticles:'pro',discussion:'pro',reactions:'pro',temporaryInvites:'pro',bulkModeration:'pro',delegatedRoles:'ultra'};
     return {tier:'ultra',version:0,settings,features:Object.entries(tiers).map(([key,tier])=>({key,tier,allowed:true})),tiers:[{label:'Premium',description:'Protección avanzada · 50 ⭐ / 30 días',available:true},{label:'Pro',description:'135 ⭐ una vez · 10 grupos',available:true},{label:'Ultra',description:'135 ⭐ / 30 días por grupo',available:true}],cas:{enabled:true,status:'ok'},developer:false,trust:[],responses:[],notes:[],history:[],operations:[],raid:null,alliance:null};
   }
   if(G.DEMO){
@@ -198,6 +348,10 @@
       if(!records.has(chatId))records.set(chatId,demoData());const d=records.get(chatId),route=url.pathname.replace('/api/advanced','');
       if(route===''&&method==='GET')return structuredClone({ok:true,...d});
       if(route===''&&method==='PATCH'){if(body.version!==d.version)throw new Error('Recarga la configuración de ejemplo.');d.settings=structuredClone(body.settings);d.version++;d.history.unshift({version:d.version,actor_id:123,created_at:new Date().toISOString(),settings:structuredClone(d.settings)});return {ok:true,...structuredClone(d)};}
+      if(route==='/reactions')return {ok:true,demo:true};
+      if(route==='/invites')return {ok:true,invites:[],demo:true};
+      if(route==='/delegates')return {ok:true,roles:[],demo:true};
+      if(route==='/bulk')return body.action==='preview'?{ok:true,items:body.input.userIds.map(userId=>({userId,name:'Ejemplo',allowed:true})),token:'demo'}:{ok:true,items:[],demo:true};
       if(route==='/trust'){d.trust=d.trust.filter(t=>t.user_id!==body.userId);d.trust.push({user_id:body.userId,scopes:body.scopes,reason:body.reason,expires_at:body.days?new Date(Date.now()+body.days*86400000).toISOString():null});}
       else if(route==='/response'){const existing=d.responses.find(r=>r.trigger===body.trigger),r={id:existing?.id||Date.now(),...body,button_label:body.buttonLabel,button_url:body.buttonUrl,cooldown_seconds:body.cooldownSeconds};d.responses=d.responses.filter(r=>r.trigger!==body.trigger);d.responses.push(r);}
       else if(route==='/note'){d.notes=d.notes.filter(n=>n.name!==body.name);d.notes.push({name:body.name,content:body.content,private_delivery:body.privateDelivery,media_type:null,buttons:body.buttonUrl?[{label:body.buttonLabel,url:body.buttonUrl}]:[]});}

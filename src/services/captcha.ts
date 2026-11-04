@@ -1,4 +1,6 @@
-import { memberMutation } from "./sanction-journal.js";
+import { memberMutation, PERMISSION_KEYS } from "./sanction-journal.js";
+import { withFreshTelegramReads } from "./telegram-cache.js";
+import { applyMemberProbation } from "./member-probation.js";
 import { tr } from "./bot-i18n.js";
 import { randomInt } from "node:crypto";
 import { InlineKeyboard, type Api } from "grammy";
@@ -17,7 +19,7 @@ import { logModeration } from "../db/repositories/moderation.js";
 import { logger } from "../logger.js";
 import { untilDateFromSeconds } from "../utils/duration.js";
 import { escapeHtml, mentionUser } from "../utils/format.js";
-import { MUTED_PERMISSIONS, UNMUTED_PERMISSIONS } from "./moderation.js";
+import { MUTED_PERMISSIONS } from "./moderation.js";
 import { getCachedChat, settingsOf } from "./chat-cache.js";
 
 const pendingUsers = new Set<string>();
@@ -51,21 +53,34 @@ async function restrict(
   chatId: number,
   userId: number,
   seconds: number,
-): Promise<void> {
+): Promise<number | null> {
   try {
-    await memberMutation(chatId,userId,()=>api.restrictChatMember(chatId, userId, MUTED_PERMISSIONS, {
-      until_date: untilDateFromSeconds(seconds),
-      use_independent_chat_permissions: true,
+    return await memberMutation(chatId,userId,()=>withFreshTelegramReads(async () => {
+      if ((await api.getChatMember(chatId, userId)).status !== "member") return null;
+      const until = untilDateFromSeconds(seconds);
+      if (!until) return null;
+      await api.restrictChatMember(chatId, userId, MUTED_PERMISSIONS, {
+        until_date: until,
+        use_independent_chat_permissions: true,
+      });
+      return until;
     }));
   } catch (error) {
     logger.warn({ err: error, chatId, userId }, tr("No se pudo restringir para el captcha"));
+    return null;
   }
 }
 
-async function unrestrict(api: Api, chatId: number, userId: number): Promise<void> {
+async function unrestrict(api: Api, chatId: number, userId: number, restrictionUntil: number | null): Promise<void> {
+  if (!restrictionUntil) return;
   try {
-    await memberMutation(chatId,userId,()=>api.restrictChatMember(chatId, userId, UNMUTED_PERMISSIONS, {
-      use_independent_chat_permissions: true,
+    await memberMutation(chatId,userId,()=>withFreshTelegramReads(async () => {
+      const member = await api.getChatMember(chatId, userId);
+      if (member.status !== "restricted" || !member.is_member || member.until_date !== restrictionUntil ||
+        PERMISSION_KEYS.some(key => member[key] === true)) return;
+      await api.restrictChatMember(chatId, userId, Object.fromEntries(PERMISSION_KEYS.map(key => [key, true])), {
+        use_independent_chat_permissions: true,
+      });
     }));
   } catch (error) {
     logger.warn({ err: error, chatId, userId }, tr("No se pudo quitar la restricción del captcha"));
@@ -117,7 +132,7 @@ export async function sendCaptcha(
     keyboard.text(tr("✅ Soy humano"), `cap:ok:${user.id}`);
   }
 
-  await restrict(api, chat.id, user.id, timeout);
+  const restrictionUntil = await restrict(api, chat.id, user.id, timeout);
 
   try {
     const message = await api.sendMessage(chat.id, text, {
@@ -125,12 +140,12 @@ export async function sendCaptcha(
       reply_markup: keyboard,
       link_preview_options: { is_disabled: true },
     });
-    await setPending(chat.id, user.id, message.message_id, answer);
+    await setPending(chat.id, user.id, message.message_id, answer, restrictionUntil);
     pendingUsers.add(key(chat.id, user.id));
     return true;
   } catch (error) {
     logger.warn({ err: error, chatId: chat.id, userId: user.id }, tr("No se pudo enviar el captcha"));
-    await unrestrict(api, chat.id, user.id);
+    await unrestrict(api, chat.id, user.id, restrictionUntil);
     return false;
   }
 }
@@ -172,7 +187,13 @@ export async function verifyCaptcha(
 
   await deletePending(chatId, userId);
   pendingUsers.delete(key(chatId, userId));
-  await unrestrict(api, chatId, userId);
+  await unrestrict(api, chatId, userId, pending.restriction_until);
+  try {
+    const chat = getCachedChat(chatId) ?? await getChat(chatId);
+    if (chat) await applyMemberProbation(api, chat, userId, Math.floor(pending.created_at.getTime() / 1000));
+  } catch (error) {
+    logger.warn({ err: error, chatId, userId }, tr("No se pudo aplicar el periodo inicial"));
+  }
   await removeMessage(api, chatId, pending.message_id);
   return { status: "ok" };
 }

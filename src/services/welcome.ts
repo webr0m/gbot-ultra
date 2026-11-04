@@ -1,5 +1,6 @@
 import { tr } from "./bot-i18n.js";
-import type { Api } from "grammy";
+import { GrammyError, type Api } from "grammy";
+import { articleMessage, type RichArticle } from "./rich-articles.js";
 import type { Chat, Message, User } from "grammy/types";
 import type { GroupSettings } from "../db/types.js";
 import { escapeHtml, formatNumber, mentionUser } from "../utils/format.js";
@@ -72,6 +73,7 @@ export async function sendWelcome(
   settings: GroupSettings,
   memberCount?: number,
   threadId?:number,
+  article?:RichArticle|null,
 ): Promise<number[]> {
   if (!settings.welcome.enabled) return [];
 
@@ -81,7 +83,10 @@ export async function sendWelcome(
   const sentIds: number[] = [];
 
   try {
-    if (media) {
+    if (article) {
+      const sent = await api.sendRichMessage(chat.id, articleMessage(article.content, article.extras), { message_thread_id: threadId || undefined });
+      sentIds.push(sent.message_id);
+    } else if (media) {
       const caption = text.length <= 1_024 ? text : undefined;
       const sent = await sendMedia(api, chat.id, media, caption, threadId);
       sentIds.push(sent.message_id);
@@ -95,6 +100,7 @@ export async function sendWelcome(
     }
   } catch (error) {
     logger.warn({ err: error, chatId: chat.id, userId: user.id }, tr("No se pudo enviar la bienvenida con multimedia"));
+    if (article && !(error instanceof GrammyError && error.error_code === 400)) return [];
     try {
       const sent = await api.sendMessage(chat.id, text, {...HTML_OPTIONS,message_thread_id:threadId||undefined});
       sentIds.push(sent.message_id);

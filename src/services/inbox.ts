@@ -27,7 +27,12 @@ const sourceSql=`WITH source AS (
    created_at,'open'::text AS system_state,md5(id::text||created_at::text) AS revision FROM member_reports WHERE chat_id=ANY($1::bigint[])
  UNION ALL
  SELECT p.chat_id,'join',p.request_id::text,'Solicitud de ingreso',p.first_name||CASE WHEN p.username IS NULL THEN '' ELSE ' (@'||p.username||')' END||
-   CASE WHEN j.state IN ('failed','expired','delivery_failed','manual_review') THEN ' · Verificación pendiente de revisión' ELSE '' END,
+   CASE j.state WHEN 'pending' THEN ' · Esperando respuesta del solicitante'
+     WHEN 'failed' THEN ' · Intentos de verificación agotados'
+     WHEN 'expired' THEN ' · Verificación vencida'
+     WHEN 'delivery_failed' THEN ' · Telegram no pudo entregar el desafío'
+     WHEN 'manual_review' THEN ' · Verificación correcta, falta aprobar el ingreso'
+     ELSE '' END,
    p.user_id,NULL::bigint,p.requested_at,CASE WHEN p.state IN ('approved','declined') THEN 'resolved' WHEN p.state='uncertain' THEN 'uncertain' ELSE 'open' END,
    md5(p.request_id::text||p.state) FROM pending_joins p LEFT JOIN join_challenges j ON j.chat_id=p.chat_id AND j.user_id=p.user_id WHERE p.chat_id=ANY($1::bigint[])
  UNION ALL

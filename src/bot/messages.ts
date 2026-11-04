@@ -10,7 +10,7 @@ import {
 } from "../db/repositories/commands.js";
 import { logger } from "../logger.js";
 import { enforceAntispam } from "../services/antispam.js";
-import { advancedMessage, autoRespond, getRichNote, deliverRichNote, scopeExemptions } from '../services/advanced-engine.js';
+import { advancedMessage, autoRespond, autoDiscussionComment, getRichNote, deliverRichNote, scopeExemptions } from '../services/advanced-engine.js';
 import { InlineKeyboard } from 'grammy';
 import { isCaptchaPending } from "../services/captcha.js";
 import { displayName, escapeHtml, mentionUser } from "../utils/format.js";
@@ -131,6 +131,10 @@ export function registerMessages(bot: Bot<AppContext>,guestsOnly=false): void {
       );
       if (result.handled) return;
       if(await enqueueVisual(chat,message,from))void runVisualJobs(ctx.api,ctx.app.botId).catch(()=>logger.warn({chatId:chat.chat_id},tr("Filtro visual pendiente del próximo cron")));
+    }
+    if (!guest && message.is_automatic_forward && !ctx.editedMessage) {
+      await autoDiscussionComment(ctx.api, chat, message).catch(error =>
+        logger.warn({ err: error, chatId: chat.chat_id }, tr("No se pudo publicar el comentario automático")));
     }
 
     // A guest response is content, never an instruction to execute commands on behalf of its caller.

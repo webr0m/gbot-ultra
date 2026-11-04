@@ -211,6 +211,7 @@ export interface PremiumCodeRow {
 }
 
 export interface CaptchaPendingRow {
+  restriction_until: number | null;
   chat_id: number;
   user_id: number;
   message_id: number | null;

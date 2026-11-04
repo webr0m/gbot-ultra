@@ -225,7 +225,7 @@ export async function replyTemp(
 }
 
 const CONFIG_COMMANDS = new Set([
-  "settings", "config", "ajustes",
+  "settings", "config", "ajustes", "anonmod",
 ]);
 
 export async function redirectGroupConfig(ctx: AppContext, next: NextFunction): Promise<void> {
@@ -236,9 +236,11 @@ export async function redirectGroupConfig(ctx: AppContext, next: NextFunction): 
   const command = match[1]?.toLowerCase();
   if (!command || !CONFIG_COMMANDS.has(command)) return next();
   if (!ctx.from || !ctx.me?.username) return next();
-  if (!(await ensureGroupAdmin(ctx))) return;
+  const anonymous = ctx.message?.sender_chat?.id === ctx.chat.id;
+  if (!anonymous && !(await ensureGroupAdmin(ctx))) return;
 
-  const deepLink = `https://t.me/${ctx.me.username}?start=settings_${ctx.chat.id}`;
+  const entry = anonymous ? "anonmod" : command === "anonmod" ? "members" : "settings";
+  const deepLink = `https://t.me/${ctx.me.username}?start=${entry}_${ctx.chat.id}`;
   await ctx.reply(
     tr("⚙️ <b>Ajustes del grupo</b>\n\nAbre los ajustes de este grupo en el panel privado. Los comandos con parámetros siguen disponibles aquí, por ejemplo /captcha on."),
     {

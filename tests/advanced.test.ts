@@ -2,7 +2,9 @@ import { describe,it,expect,vi } from 'vitest';
 vi.mock('../src/config.js',()=>({config:{ownerIds:new Set([900000001]),captchaTimeoutSeconds:300,logLevel:'silent',databaseUrl:''}}));
 import { ADVANCED_DEFAULTS, advancedSchema, effectiveAdvanced } from '../src/services/advanced-config.js';
 import { chatTier, hasFeature } from '../src/services/entitlements.js';
-import { contentMatch, isNight, responseMatches } from '../src/services/advanced-engine.js';
+import { contentMatch, contentRule, isNight, responseMatches } from '../src/services/advanced-engine.js';
+import { contentExample } from '../src/services/message-content.js';
+import { articleExtrasSchema, articleMessage } from '../src/services/rich-articles.js';
 import { getPlan, getPremiumStatus } from '../src/services/premium.js';
 import { premiumStatusText } from '../src/bot/texts.js';
 import { antispamHits } from '../src/services/antispam.js';
@@ -28,6 +30,38 @@ describe('Shared text rules',()=>{
  it('triggers antiflood exactly at the configured limit',()=>{const s=enabled();s.blacklist.enabled=false;s.antilink.enabled=false;expect(antispamHits(message('hola'),s,[],s.antiflood.limit-1)).toEqual([]);expect(antispamHits(message('hola'),s,[],s.antiflood.limit)[0]).toMatchObject({rule:'antiflood',action:'mute'});});
 });
 describe('Rule evaluation',()=>{
+ it('evaluates individual forwarding actions without treating a hidden author as a bot',()=>{
+  const s=structuredClone(ADVANCED_DEFAULTS);s.forwarding.actions={bot:'delete',channel:'warn',person:'mute'};
+  for(const [origin,action] of [['bot','delete'],['channel','warn'],['person','mute']] as const){
+   const type=contentMatch(contentExample('Texto','forward',origin),s);
+   expect(type).toBe('forward:'+origin);
+   expect(contentRule(s,type!).action).toBe(action);
+  }
+  expect(contentMatch(contentExample('Texto','forward','hidden_user'),s)).toBeNull();
+ });
+ it('matches AND terms, treats regex punctuation literally and counts visible Unicode text',()=>{
+  const s=structuredClone(ADVANCED_DEFAULTS);s.textLimits.patterns='foo*bar && sale+\notro';
+  expect(contentMatch({text:'SALE+ ahora FOO...BAR'},s)).toBe('text_pattern');
+  expect(contentMatch({text:'SALE ahora FOO...BAR'},s)).toBeNull();
+  expect(contentMatch({text:'SALE+ ahora FOO...BAR'},s,true)).toBeNull();
+  s.textLimits.maxLength=3;
+  expect(contentMatch({text:'🧉🧉🧉'},s)).toBeNull();
+  expect(contentMatch(contentExample('🧉🧉🧉🧉','rich_message'),s)).toBe('text_length');
+ });
+ it('keeps the added fields disabled when reading a previous release configuration',()=>{
+  const {probation,forwarding,textLimits,richArticles,discussion,...legacy}=ADVANCED_DEFAULTS;
+  expect(advancedSchema.parse(legacy)).toEqual(ADVANCED_DEFAULTS);
+ });
+ it('builds native rich message blocks from validated plain values',()=>{
+  const extras=articleExtrasSchema.parse({heading:'Agenda',table:[['Hora','Actividad'],['9','Inicio']],gallery:['https://example.org/photo.jpg']});
+  expect(articleMessage('<strong>literal</strong>',extras).blocks).toMatchObject([
+   {type:'heading',text:'Agenda'},{type:'paragraph',text:'<strong>literal</strong>'},
+   {type:'table',cells:[[{text:'Hora',is_header:true},{text:'Actividad',is_header:true}],[{text:'9'},{text:'Inicio'}]]},
+   {type:'collage',blocks:[{type:'photo',photo:{media:'https://example.org/photo.jpg'}}]},
+  ]);
+  expect(articleExtrasSchema.safeParse({table:[['a','b'],['c']]}).success).toBe(false);
+  expect(articleExtrasSchema.safeParse({gallery:['https://user:secret@example.org/photo.jpg']}).success).toBe(false);
+ });
  it.each([['sticker',{sticker:{}}],['gif',{animation:{}}],['voice',{voice:{}}],['forward',{forward_origin:{}}],['anonymous',{sender_chat:{}}],['invite',{text:'https://t.me/+invite'}]] as const)('detects %s content without API calls',(type,message)=>{const s=structuredClone(ADVANCED_DEFAULTS);s.locks.enabled=true;s.locks.types=[type];expect(contentMatch(message as never,s)).toBe(type);});
  it('does not block unmatched types or disabled rules',()=>{const s=structuredClone(ADVANCED_DEFAULTS);s.locks.types=['photo'];expect(contentMatch({photo:[]} as never,s)).toBeNull();s.locks.enabled=true;expect(contentMatch({text:'Hola'},s)).toBeNull();});
  it('uses word boundaries, normalized case and exact/prefix distinctions',()=>{expect(responseMatches({mode:'word',trigger:'hola'},'¡HOLA!')).toBe(true);expect(responseMatches({mode:'word',trigger:'hola'},'holanda')).toBe(false);expect(responseMatches({mode:'exact',trigger:'horario'},'horario hoy')).toBe(false);expect(responseMatches({mode:'prefix',trigger:'horario'},'HORARIO hoy')).toBe(true);});

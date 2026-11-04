@@ -3,14 +3,22 @@ import { many, one, withTransaction } from '../db/pool.js';
 import type { ChatRow } from '../db/types.js';
 import { hasFeature, type AdvancedFeature } from './entitlements.js';
 import { ReadCache } from './read-cache.js';
+import { articleSchema } from './rich-articles.js';
 
 export const CONTENT_TYPES = ['sticker','gif','voice','audio','video','photo','document','forward','invite','anonymous','poll','rich_message','guest_bot','live_photo','story','spoiler','custom_emoji','giveaway','external_reply'] as const;
 export const TRUST_SCOPES = ['locks','raid','captcha','blacklist','antilink','antiflood'] as const;
+export const FORWARD_ORIGINS = ['person','bot','hidden_user','chat','channel'] as const;
+const contentAction = z.enum(['delete','warn','mute','ban']);
+const probationDefaults = { enabled: false, minutes: 120 };
+const forwardingDefaults = { actions: {}, durationSeconds: 600 };
+const textLimitDefaults = { patterns: '', maxLength: 0, action: 'delete' as const, durationSeconds: 600 };
+const articleDefaults = { welcome: null, rules: null };
+const discussionDefaults = { enabled: false, text: '' };
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const zone = z.string().max(80).refine(value => {try {new Intl.DateTimeFormat('en',{timeZone:value});return true;}catch{return false;}},'Zona horaria no válida');
 export const advancedSchema = z.object({
  raid: z.object({enabled:z.boolean(), threshold:z.number().int().min(3).max(500), windowSeconds:z.number().int().min(10).max(300), durationSeconds:z.number().int().min(60).max(86400), action:z.enum(['captcha','mute','ban']), sanctionSeconds:z.number().int().min(60).max(86400)}),
- locks: z.object({enabled:z.boolean(), types:z.array(z.enum(CONTENT_TYPES)).max(CONTENT_TYPES.length), action:z.enum(['delete','warn','mute','ban']), durationSeconds:z.number().int().min(60).max(2592000)}),
+ locks: z.object({enabled:z.boolean(), types:z.array(z.enum(CONTENT_TYPES)).max(CONTENT_TYPES.length), action:contentAction, durationSeconds:z.number().int().min(60).max(2592000)}),
  warningExpiry: z.object({days:z.number().int().min(0).max(365)}),
  night: z.object({enabled:z.boolean(), timezone:zone, start:time, end:time, days:z.array(z.number().int().min(0).max(6)).min(1).max(7)}),
  filters:z.object({enabled:z.boolean()}),
@@ -19,6 +27,20 @@ export const advancedSchema = z.object({
  joinGate:z.object({enabled:z.boolean(), mode:z.enum(['button','math'])}),
  richNotes:z.object({enabled:z.boolean()}),
  observation:z.object({enabled:z.boolean()}),
+ probation:z.object({enabled:z.boolean(),minutes:z.number().int().min(1).max(10080)}).default(probationDefaults),
+ forwarding:z.object({actions:z.partialRecord(z.enum(FORWARD_ORIGINS),contentAction),durationSeconds:z.number().int().min(60).max(2592000)}).default(forwardingDefaults),
+ textLimits:z.object({
+  patterns:z.string().trim().max(2000).refine(value=>value.split('\n').filter(line=>line.trim()).length<=30&&value.split('\n').filter(line=>line.trim()).every(line=>{
+   const terms=line.split('&&');
+   return terms.length<=5&&terms.every(term=>term.replaceAll('*','').trim().length>=2);
+  }),'Usa hasta 30 reglas con un máximo de 5 términos por línea y al menos dos caracteres literales por término.'),
+  maxLength:z.number().int().min(0).max(100000),
+  action:contentAction,
+  durationSeconds:z.number().int().min(60).max(2592000),
+ }).default(textLimitDefaults),
+ richArticles:z.object({welcome:articleSchema.nullable(),rules:articleSchema.nullable()}).default(articleDefaults),
+ discussion:z.object({enabled:z.boolean(),text:z.string().trim().max(1000)})
+  .refine(value=>!value.enabled||Boolean(value.text),'Escribe el comentario automático.').default(discussionDefaults),
 }).strict().refine(v => !v.night.enabled || v.night.start !== v.night.end,{message:'El inicio y el fin del horario deben ser distintos'});
 export type AdvancedSettings = z.infer<typeof advancedSchema>;
 export const ADVANCED_DEFAULTS: AdvancedSettings = {
@@ -26,6 +48,9 @@ export const ADVANCED_DEFAULTS: AdvancedSettings = {
  locks:{enabled:false,types:[],action:'delete',durationSeconds:600}, warningExpiry:{days:0},
  night:{enabled:false,timezone:'America/Santiago',start:'23:00',end:'07:00',days:[0,1,2,3,4,5,6]},
  filters:{enabled:false},topics:{welcomeThreadId:0,logThreadId:0},silent:{enabled:false},joinGate:{enabled:false,mode:'math'},richNotes:{enabled:false},observation:{enabled:false},
+ probation:probationDefaults,forwarding:forwardingDefaults,textLimits:textLimitDefaults,
+ richArticles:articleDefaults,
+ discussion:discussionDefaults,
 };
 export function normalizeAdvanced(raw: unknown): AdvancedSettings {
  const merged=structuredClone(ADVANCED_DEFAULTS);
