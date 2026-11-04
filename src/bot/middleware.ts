@@ -1,3 +1,4 @@
+import {moderationUser} from '../services/message-content.js';
 import { rememberPrivateContact,rememberBlockedContact } from "../services/bot-contacts.js";
 import { tr } from "../services/bot-i18n.js";
 import type { NextFunction } from "grammy";
@@ -48,7 +49,8 @@ export async function attachContext(
   ctx: AppContext,
   next: NextFunction,
 ): Promise<void> {
-  const from = ctx.from;
+  const incoming=ctx.message??ctx.editedMessage;
+  const from = (incoming&&ctx.chat&&isGroupChat(ctx.chat)?moderationUser(incoming):undefined)??ctx.from;
   let chatRow = null;
   let settings = mergeSettings(null);
   let isAdmin = false;

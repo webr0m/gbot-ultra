@@ -1,6 +1,6 @@
 {
   "name": "gbot-ultra",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "private": true,
   "description": "GBot Ultra — Bot de administración de grupos de Telegram con suscripciones Premium y Mini App.",
   "type": "module",

@@ -1,3 +1,4 @@
+import {contentExample} from '../../services/message-content.js';
 import type { FastifyInstance } from 'fastify';
 import type { Bot } from 'grammy';
 import { z } from 'zod';
@@ -106,7 +107,7 @@ export function registerAdvancedRoutes(app:FastifyInstance,bot:Bot<AppContext>):
  });
  app.post('/api/advanced/simulate',async request=>{
   const b=bodyOf(request);const {chat}=await access(request,parseChatId(b.chatId),'observation');const v=z.object({text:z.string().max(4000),type:z.enum(['text',...CONTENT_TYPES]),messageCount:z.number().int().min(1).max(100).default(1)}).parse(b);
-  const a=(await advancedConfig(chat.chat_id)).settings;const message:any={text:v.text,message_id:0,entities:[]};if(v.type==='gif')message.animation={};else if(v.type==='forward')message.forward_origin={};else if(v.type==='anonymous')message.sender_chat={};else if(v.type!=='text'&&v.type!=='invite')message[v.type]={};
+  const a=(await advancedConfig(chat.chat_id)).settings;const message=contentExample(v.text,v.type) as any;
   const matches:{rule:string;action:string}[]=[];const content=contentMatch(message,a);if(content)matches.push({rule:'Contenido: '+content,action:a.locks.action});
   const base=settingsOf(chat);const rows=base.blacklist.enabled?await listBlacklist(chat.chat_id):[];
   const labels={blacklist:'Lista negra',antilink:'Antienlaces',antiflood:'Antiflood dentro de '+base.antiflood.windowSeconds+' segundos'};

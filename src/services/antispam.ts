@@ -1,3 +1,4 @@
+import {messageContent,isGuestMessage,moderationUser} from './message-content.js';
 import { recordRuleEvent, ruleRevision } from "./rule-quality.js";
 import { tr } from "./bot-i18n.js";
 import type { Api } from "grammy";
@@ -42,32 +43,9 @@ async function getBlacklist(chatId: number): Promise<BlacklistRow[]> {
   return rows;
 }
 
-function textOf(message: Message): string {
-  return message.text ?? message.caption ?? "";
-}
+function textOf(message: Message): string {return messageContent(message).text;}
 
-function entitiesOf(message: Message): MessageEntity[] {
-  return message.entities ?? message.caption_entities ?? [];
-}
-
-function entityText(message: Message, entity: MessageEntity): string {
-  const text = textOf(message);
-  return text.slice(entity.offset, entity.offset + entity.length);
-}
-
-export function extractLinks(message: Message): string[] {
-  const links = new Set<string>();
-  for (const entity of entitiesOf(message)) {
-    if (entity.type === "text_link" && entity.url) links.add(entity.url);
-    if (entity.type === "url") links.add(entityText(message, entity));
-  }
-  const text = textOf(message);
-  const regex = /(?:https?:\/\/|www\.|t\.me\/)[^\s<>"']+/gi;
-  for (const match of text.matchAll(regex)) {
-    if (match[0]) links.add(match[0]);
-  }
-  return [...links];
-}
+export function extractLinks(message: Message): string[] {return messageContent(message).links;}
 
 function hostnameOf(link: string): string | null {
   try {
@@ -214,16 +192,17 @@ export async function enforceAntispam(
   message: Message,
   user: User,
   botId: number,
-  options: {observe?:boolean;global?:'only'|'skip'} = {},
+  options: {observe?:boolean;global?:'only'|'skip';countFlood?:boolean} = {},
 ): Promise<AntispamResult> {
   if (config.ownerIds.has(user.id)) return { handled: false };
   const observe=options.observe??false;
+  const deleteOnly=Boolean(message.sender_chat)||(isGuestMessage(message)&&!moderationUser(message));
   const chatId = chat.chat_id;
   const target = targetOf(user);
   const context = moderationContext(api, chat, settings, botId);
 
   // 1. Baneo global
-  const global=options.global==='skip'?{banned:false}:await globalBan(user.id);
+  const global=options.global==='skip'||deleteOnly?{banned:false}:await globalBan(user.id);
   if (global.banned) {
     await deleteMessage(api, chatId, message.message_id);
     try {
@@ -240,8 +219,8 @@ export async function enforceAntispam(
   const floodKey = `${chatId}:${user.id}`;
   const now = Date.now();
   const windowMs = settings.antiflood.windowSeconds * 1_000;
-  const floodTimes = settings.antiflood.enabled
-    ? [...(floodTracker.get(floodKey) ?? []).filter((time) => now - time < windowMs), now]
+  const floodTimes = settings.antiflood.enabled&&!deleteOnly
+    ? [...(floodTracker.get(floodKey) ?? []).filter((time) => now - time < windowMs), ...(options.countFlood===false?[]:[now])]
     : [];
   const blacklistRows = settings.blacklist.enabled ? await getBlacklist(chatId) : [];
   const hit = antispamHits(message, settings, blacklistRows, floodTimes.length)[0];
@@ -267,6 +246,7 @@ export async function enforceAntispam(
   }
 
   let succeeded=await deleteMessage(api, chatId, message.message_id);
+  if(deleteOnly){await logModeration({chatId,action:'delete_channel_post',reason:hit.rule,metadata:{guest:isGuestMessage(message),senderChatId:message.guest_bot_caller_chat?.id??message.sender_chat?.id,applied:succeeded}});await metric(succeeded?'applied':'error');return {handled:true,reason:hit.rule};}
   if (hit.rule === "blacklist") {
     try {
       if (hit.action === "warn") {

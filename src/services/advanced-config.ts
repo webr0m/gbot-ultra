@@ -4,13 +4,13 @@ import type { ChatRow } from '../db/types.js';
 import { hasFeature, type AdvancedFeature } from './entitlements.js';
 import { ReadCache } from './read-cache.js';
 
-export const CONTENT_TYPES = ['sticker','gif','voice','audio','video','photo','document','forward','invite','anonymous','poll'] as const;
+export const CONTENT_TYPES = ['sticker','gif','voice','audio','video','photo','document','forward','invite','anonymous','poll','rich_message','guest_bot','live_photo','story','spoiler','custom_emoji','giveaway','external_reply'] as const;
 export const TRUST_SCOPES = ['locks','raid','captcha','blacklist','antilink','antiflood'] as const;
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const zone = z.string().max(80).refine(value => {try {new Intl.DateTimeFormat('en',{timeZone:value});return true;}catch{return false;}},'Zona horaria no válida');
 export const advancedSchema = z.object({
  raid: z.object({enabled:z.boolean(), threshold:z.number().int().min(3).max(500), windowSeconds:z.number().int().min(10).max(300), durationSeconds:z.number().int().min(60).max(86400), action:z.enum(['captcha','mute','ban']), sanctionSeconds:z.number().int().min(60).max(86400)}),
- locks: z.object({enabled:z.boolean(), types:z.array(z.enum(CONTENT_TYPES)).max(11), action:z.enum(['delete','warn','mute','ban']), durationSeconds:z.number().int().min(60).max(2592000)}),
+ locks: z.object({enabled:z.boolean(), types:z.array(z.enum(CONTENT_TYPES)).max(CONTENT_TYPES.length), action:z.enum(['delete','warn','mute','ban']), durationSeconds:z.number().int().min(60).max(2592000)}),
  warningExpiry: z.object({days:z.number().int().min(0).max(365)}),
  night: z.object({enabled:z.boolean(), timezone:zone, start:time, end:time, days:z.array(z.number().int().min(0).max(6)).min(1).max(7)}),
  filters:z.object({enabled:z.boolean()}),

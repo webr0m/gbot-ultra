@@ -1,3 +1,4 @@
+import {messageContent,isGuestMessage,moderationUser} from './message-content.js';
 import { recordRuleEvent, ruleRevision } from "./rule-quality.js";
 import { tr } from "./bot-i18n.js";
 import { randomInt, randomBytes } from 'node:crypto';
@@ -27,13 +28,10 @@ export async function scopeExemptions(chat:ChatRow,userId:number):Promise<string
 }
 export function contentMatch(message:Partial<Message>,settings:AdvancedSettings):string|null{
  if(!settings.locks.enabled)return null;
- const m=message as Record<string,unknown>;
+ const content=messageContent(message);
  for(const type of settings.locks.types){
-  if(type==='gif'&&m.animation)return type;
-  if(type==='forward'&&m.forward_origin)return type;
-  if(type==='anonymous'&&m.sender_chat)return type;
-  if(type==='invite'&&/(?:t\.me|telegram\.me)\/(?:\+|joinchat\/|[a-zA-Z0-9_]+)/i.test(String(m.text??m.caption??'')))return type;
-  if(!['gif','forward','anonymous','invite'].includes(type)&&m[type])return type;
+  if(type==='invite'&&content.links.some(link=>/(?:t\.me|telegram\.me)\/(?:\+|joinchat\/|[a-zA-Z0-9_]+)/i.test(link)))return type;
+  if(content.types.has(type))return type;
  }return null;
 }
 export function isNight(settings:AdvancedSettings['night'],now=new Date()):boolean{
@@ -51,10 +49,10 @@ export async function advancedMessage(api:Api,chat:ChatRow,base:GroupSettings,me
  const type=scopes.includes('locks')?null:contentMatch(message,a);
  if(!type)return {handled:false,settings,observe:a.observation.enabled};
  const metric=(outcome:'applied'|'observation'|'error')=>recordRuleEvent(chat.chat_id,message.message_id,'locks:'+type,ruleRevision(a.locks),a.locks.action,outcome);
- try{await onceOperation(`content:${chat.chat_id}:${message.message_id}`,async()=>{
+ try{await onceOperation(`content:${chat.chat_id}:${message.message_id}:${message.edit_date??0}`,async()=>{
   if(a.observation.enabled){await metric('observation');await logModeration({chatId:chat.chat_id,targetId:user.id,action:'observation',reason:tr("Contenido: ")+type,metadata:{would:a.locks.action}});return null;}
   await api.deleteMessage(chat.chat_id,message.message_id);
-  if(message.sender_chat){await metric('applied');await logModeration({chatId:chat.chat_id,action:'delete_channel_post',reason:tr("Contenido: ")+type,metadata:{senderChatId:message.sender_chat.id}});return null;}
+  if(message.sender_chat||(isGuestMessage(message)&&!moderationUser(message))){await metric('applied');await logModeration({chatId:chat.chat_id,action:'delete_channel_post',reason:tr("Contenido: ")+type,metadata:{senderChatId:message.sender_chat?.id??message.guest_bot_caller_chat?.id,guest:isGuestMessage(message)}});return null;}
   const ctx:ModerationContext={api,chatId:chat.chat_id,chat,settings,botId,actorId:botId,actorName:'GBot',source:'bot',publicLogFallback:a.silent.enabled};
   const target={userId:user.id,name:user.first_name};const options={target,reason:tr("Contenido no permitido: ")+type,durationSeconds:a.locks.durationSeconds};
   if(a.locks.action==='warn')await warnUser(ctx,target,options.reason);

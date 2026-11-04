@@ -1,3 +1,4 @@
+import {isGuestMessage,moderationUser} from '../services/message-content.js';
 import { tr } from "../services/bot-i18n.js";
 import type { Bot } from "grammy";
 import type { Message } from "grammy/types";
@@ -95,16 +96,18 @@ function noteName(text: string): string | null {
  * Middleware de mensajes de grupo: captcha pendiente, automoderación y
  * comandos personalizados / notas dinámicas.
  */
-export function registerMessages(bot: Bot<AppContext>): void {
+export function registerMessages(bot: Bot<AppContext>,guestsOnly=false): void {
   bot.use(async (ctx, next) => {
-    const message = ctx.message;
-    const from = ctx.from;
-    if (!message || !from || (from.is_bot && !message.sender_chat)) return next();
-    if (!ctx.chat || !isGroupChat(ctx.chat)) return next();
+    const message = ctx.message??ctx.editedMessage;
+    const guest=Boolean(message&&isGuestMessage(message));
+    if(guestsOnly&&!guest)return next();if(!guestsOnly&&guest)return;
+    const from = (message&&moderationUser(message))??ctx.from;
+    if (!message || !from || (from.is_bot && !message.sender_chat&&!guest)) return next();
+    if (!ctx.chat || !isGroupChat(ctx.chat)) {if(guest)return;return next();}
 
     const chat = ctx.app.chatRow;
-    if (!chat) return next();
-    if(message.sender_chat?.id===chat.chat_id)return next(); // Anonymous administrators speak as the group.
+    if (!chat) {if(guest)return;return next();}
+    if(message.sender_chat?.id===chat.chat_id){if(guest)return;return next();} // Anonymous administrators speak as the group.
 
     // Mientras el captcha está pendiente, el usuario no puede escribir.
     if (!ctx.app.isOwner && isCaptchaPending(chat.chat_id, from.id) && !(await scopeExemptions(chat,from.id)).includes('captcha')) {
@@ -124,12 +127,14 @@ export function registerMessages(bot: Bot<AppContext>): void {
         message,
         from,
         ctx.app.botId,
-        {observe:advanced.observe,global:'skip'},
+        {observe:advanced.observe,global:'skip',countFlood:!ctx.editedMessage},
       );
       if (result.handled) return;
       if(await enqueueVisual(chat,message,from))void runVisualJobs(ctx.api,ctx.app.botId).catch(()=>logger.warn({chatId:chat.chat_id},tr("Filtro visual pendiente del próximo cron")));
     }
 
+    // A guest response is content, never an instruction to execute commands on behalf of its caller.
+    if(guest||ctx.editedMessage)return;
     const text = (message.text ?? message.caption ?? "").trim();
     if (!text) return next();
 

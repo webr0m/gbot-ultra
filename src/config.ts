@@ -113,7 +113,7 @@ export const config = {
   adSponsoredUrl: env.AD_SPONSORED_URL,
   nodeEnv: env.NODE_ENV,
   isProduction: env.NODE_ENV === "production",
-  version: "2.6.0",
+  version: "2.7.0",
 } as const;
 
 export function isOwner(userId: number | undefined | null): boolean {

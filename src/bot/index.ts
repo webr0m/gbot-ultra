@@ -137,6 +137,7 @@ export function createBot(token=config.botToken,boundChat?:number): Bot<AppConte
   });
 
   bot.use(attachContext);
+  registerMessages(bot,true);
   bot.use(redirectGroupConfig);
   registerWorkspaceBot(bot);
   registerAdvancedBot(bot);
