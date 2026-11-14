@@ -19,10 +19,11 @@
     joinGate:{title:'Verificación antes de ingresar',description:'Telegram abre el portal si GBot está asignado como bot guardián. En solicitudes normales, GBot envía el desafío por privado.',fields:[['enabled','Activar captcha previo','check'],['mode','Modo','select',['button','math']]]},
     richNotes:{title:'Notas enriquecidas',description:'Permite texto, multimedia, botones y entrega privada. Guarda un medio respondiendo con /saverich nombre en Telegram.',fields:[['enabled','Activar notas enriquecidas','check']]},
     observation:{title:'Modo de observación',description:'Registra lo que harían las reglas automáticas sin ejecutar sus sanciones. Los baneos globales existentes mantienen su política.',fields:[['enabled','Observar sin sancionar','check']]},
+    reactions:{title:'Reacciones del grupo',description:'Bloquea las reacciones de todo el grupo o convierte una reacción en un reporte anónimo para la bandeja.',fields:[['muteAll','Bloquear reacciones en el grupo','check'],['reportEmoji','Emoji de reporte (vacío = desactivado)','text'],['autoDeleteAfter','Borrar el mensaje con N reportes (0 = no borrar)','number',0,50]]},
   };
   const origins={person:'Personas',bot:'Bots',hidden_user:'Autor con identidad oculta',chat:'Grupos',channel:'Canales'};
   const types={sticker:'Stickers',gif:'GIF',voice:'Notas de voz',audio:'Audios',video:'Vídeos',photo:'Fotos',document:'Archivos',forward:'Reenvíos',invite:'Enlaces de Telegram',anonymous:'Publicaciones como canal',poll:'Encuestas',rich_message:'Mensajes enriquecidos',guest_bot:'Bots invitados',live_photo:'Live Photos',story:'Historias',spoiler:'Spoilers',custom_emoji:'Emojis personalizados',giveaway:'Sorteos',external_reply:'Citas de otros chats'};
-  const labels={allow:'Permitir',delete:'Borrar',warn:'Advertir',mute:'Silenciar',ban:'Banear',unban:'Retirar baneo global','cas-allow':'Exceptuar de CAS','cas-remove':'Quitar excepción de CAS',create:'Crear',rename:'Renombrar',close:'Cerrar',reopen:'Reabrir',captcha:'Captcha',button:'Botón',math:'Matemático',word:'Palabra',exact:'Frase exacta',prefix:'Inicio de frase',apply:'Aplicar en este grupo',skip:'No aplicar',undo:'Revertir en este grupo',...origins};
+  const labels={allow:'Permitir',delete:'Borrar',warn:'Advertir',mute:'Silenciar',ban:'Banear',kick:'Expulsar',unban:'Retirar baneo global','cas-allow':'Exceptuar de CAS','cas-remove':'Quitar excepción de CAS',create:'Crear',rename:'Renombrar',close:'Cerrar',reopen:'Reabrir',captcha:'Captcha',button:'Botón',math:'Matemático',word:'Palabra',exact:'Frase exacta',prefix:'Inicio de frase',apply:'Aplicar en este grupo',skip:'No aplicar',undo:'Revertir en este grupo',...origins};
   const button=(text,action,attrs='')=>`<button type="button" class="btn btn-secondary" data-action="${action}" ${attrs}>${esc(text)}</button>`;
   const field=(label,input)=>`<label class="field"><span class="field-label">${esc(label)}</span>${input}</label>`;
   const input=(name,type='text',value='',extra='')=>`<input class="input" name="${esc(name)}" type="${type}" value="${esc(value)}" ${extra}>`;
@@ -52,7 +53,7 @@
     if(!current())return;
     const d=session.data;
     const cards=d.features.filter(f=>definitions[f.key]).map(f=>{
-      const def=definitions[f.key],s=d.settings[f.key],active=s.enabled??(s.days>0||s.welcomeThreadId>0||s.logThreadId>0||(s.actions&&Object.keys(s.actions).length)||s.patterns||s.maxLength);
+      const def=definitions[f.key],s=d.settings[f.key],active=s.enabled??(s.days>0||s.welcomeThreadId>0||s.logThreadId>0||(s.actions&&Object.keys(s.actions).length)||s.patterns||s.maxLength||s.muteAll||s.reportEmoji);
       return `<button class="adv-feature" type="button" data-action="advanced-section" data-key="${f.key}"><span><strong>${esc(def.title)}</strong><small>${esc(def.description)}</small></span><span class="adv-status">${esc(f.allowed?(active?'Activo':'Configurar'):f.tier.toUpperCase())}</span></button>`;
     }).join('');
     sheet('Centro Premium',`<div class="adv-intro"><span class="badge">${esc(d.tier.toUpperCase())}</span><h3>Protección que puedes ajustar.</h3><p>Activa solo las reglas que necesite este grupo. Cada cambio conserva su versión.</p></div><div class="adv-grid">${cards}</div><div class="adv-tools">${button('Usuarios de confianza','advanced-trust')}${button('Contenido avanzado','advanced-content')}${button('Importar e historial','advanced-transfer')}${button('Gestionar temas','advanced-topics')}${button('Alianzas GBot','advanced-alliance')}${button('Simular reglas','advanced-simulate')}${button('Publicaciones y filtro visual','automation-open')}${button('Asistente y marca propia','ultra-open')}</div><div class="card"><h4>Planes disponibles</h4>${d.tiers.map(t=>`<p><strong>${esc(t.label)}</strong> · ${esc(t.description)}${t.available?'':' · Venta aún no disponible.'}</p>`).join('')}</div>${d.operations.length?`<div class="card"><h4>Operaciones por revisar</h4><p>Una respuesta de Telegram pudo perderse. Revisa el registro antes de repetir.</p>${d.operations.map(o=>`<p class="mono">${esc(o.key)} · ${esc(o.state)}</p>`).join('')}</div>`:''}`);
@@ -65,6 +66,7 @@
     document.querySelector('.adv-tools [data-action="advanced-content"]')?.insertAdjacentHTML('afterend',
       button('Reacciones · Pro','advanced-reactions')+button('Artículos · Pro','advanced-articles')+
       button('Invitaciones · Pro','advanced-invites')+button('Moderación por lotes · Pro','advanced-bulk')+
+      button('Poda de inactivos · Premium','advanced-cleanup')+
       button('Roles temporales · Ultra','advanced-delegates'));
   }
   G.registerAction('advanced-open',async()=>{
@@ -131,7 +133,15 @@
   });
   G.registerAction('advanced-reactions',()=>{
     if(!current()||!gate('reactions'))return;
-    sheet('Moderación de reacciones',`<p>Silencia solo las reacciones de un miembro o retira las que ya agregó.</p><div class="adv-tools">${button('Silenciar','advanced-reaction-edit','data-kind="mute"')}${button('Retirar de un mensaje','advanced-reaction-edit','data-kind="remove"')}${button('Retirar recientes','advanced-reaction-edit','data-kind="clear"')}${button('Volver','advanced-home')}</div>`);
+    sheet('Moderación de reacciones',`<p>Silencia solo las reacciones de un miembro o retira las que ya agregó.</p><div class="adv-tools">${button('Silenciar','advanced-reaction-edit','data-kind="mute"')}${button('Retirar de un mensaje','advanced-reaction-edit','data-kind="remove"')}${button('Retirar recientes','advanced-reaction-edit','data-kind="clear"')}${button('Volver','advanced-home')}</div><h4>Reacciones de todo el grupo</h4><p>El bloqueo usa los permisos generales del grupo y conserva el resto de las restricciones. Un emoji de reporte convierte la reacción en una denuncia en la bandeja.</p><div class="adv-tools">${button('Bloquear reacciones','advanced-reaction-group','data-enabled="true"')}${button('Permitir reacciones','advanced-reaction-group','data-enabled="false"')}${button('Configurar','advanced-section','data-key="reactions"')}</div>`);
+  });
+  G.registerAction('advanced-reaction-group',async target=>{
+    if(!current()||!gate('reactions'))return;
+    const enabled=target.dataset.enabled==='true';
+    await actionPost('reactions',{action:'group',enabled});
+    await refresh();
+    G.toast(enabled?'Reacciones bloqueadas en el grupo.':'Reacciones permitidas en el grupo.','success');
+    sheet('Moderación de reacciones',`<p>${enabled?'Las reacciones están bloqueadas para todo el grupo.':'Las reacciones están permitidas en el grupo.'}</p><div class="adv-tools">${button('Volver','advanced-home')}</div>`);
   });
   const reactionTitles={mute:'Silenciar reacciones',remove:'Retirar reacciones de un mensaje',clear:'Retirar reacciones recientes'};
   G.registerAction('advanced-reaction-edit',t=>{
@@ -219,8 +229,7 @@
     if(!current()||!gate('bulkModeration'))return;
     sheet('Moderación por lotes',`<p>Silencia o banea temporalmente entre 2 y 10 miembros. El panel revisa cada cuenta antes de aplicar la acción.</p><form data-form="advanced-bulk-preview">${field('Acción',select('action',['mute','ban'],'mute'))}${field('IDs separados por espacios o saltos de línea','<textarea class="input" name="ids" rows="4" maxlength="190" required></textarea>')}${field('Duración en minutos',input('minutes','number',60,'min="1" max="43200" required'))}${field('Motivo',input('reason','text','','minlength="3" maxlength="300" required'))}<div class="sheet-actions"><button class="btn btn-primary" type="submit">Revisar miembros</button>${button('Volver','advanced-home')}</div></form>`);
   });
-  const bulkItems=items=>items.map(item=>`<div class="card"><strong>${esc(item.name)} · ${esc(item.userId)}</strong><p>${esc(item.state==='applied'?'Aplicado':item.detail||(item.allowed?'Elegible':'Omitido'))}</p></div>`).join('');
-  G.registerForm('advanced-bulk-preview',async f=>{
+  const bulkItems=items=>items.map(item=>`<div class="card"><strong>${esc(item.name)} · ${esc(item.userId)}</strong><p>${esc(item.state==='applied'?'Aplicado':item.detail||(item.allowed?'Elegible':'Omitido'))}</p></div>`).join('');  G.registerForm('advanced-bulk-preview',async f=>{
     const d=new FormData(f),input={action:d.get('action'),userIds:String(d.get('ids')).trim().split(/[\s,]+/).map(Number),minutes:Number(d.get('minutes')),reason:d.get('reason')};
     const {items,token}=await actionPost('bulk',{action:'preview',input});
     session.bulkToken=token;
@@ -231,6 +240,23 @@
     const {items}=await actionPost('bulk',{action:'apply',token});
     session.bulkToken=null;
     sheet('Resultado del lote',bulkItems(items)+button('Volver','advanced-home'));
+  });
+  const cleanupItems=items=>items.map(item=>`<div class="card"><strong>${esc(item.name)} · ${esc(item.userId)}</strong><p>${esc(item.state==='applied'?'Acción aplicada':item.state==='omitted'?'Omitido: '+item.detail:'Revisar en Telegram')}</p></div>`).join('');
+  G.registerAction('advanced-cleanup',()=>{
+    if(!current()||!gate('memberCleanup'))return;
+    sheet('Poda de miembros inactivos',`<p>Selecciona a los miembros que no escriben desde hace varios días. Administradores, bots, cuentas protegidas y usuarios de confianza quedan fuera.</p><form data-form="advanced-cleanup-preview">${field('Días sin actividad',input('inactiveDays','number',30,'min="7" max="365" required'))}${field('Acción',select('action',['kick','ban'],'kick'))}${field('Máximo de miembros',input('limit','number',20,'min="1" max="200" required'))}${field('Motivo',input('reason','text','','minlength="3" maxlength="300" required'))}<div class="sheet-actions"><button class="btn btn-primary" type="submit">Revisar miembros</button>${button('Volver','advanced-home')}</div></form>`);
+  });
+  G.registerForm('advanced-cleanup-preview',async f=>{
+    const d=new FormData(f),criteria={inactiveDays:Number(d.get('inactiveDays')),action:d.get('action'),limit:Number(d.get('limit')),reason:d.get('reason')};
+    const {items,token}=await actionPost('cleanup',{action:'preview',criteria});
+    session.cleanupToken=token;
+    sheet('Revisar poda',`<p>${esc(labels[criteria.action]||criteria.action)} · ${criteria.inactiveDays} días sin actividad</p>${items.length?cleanupItems(items):'<p>No hay miembros inactivos que cumplan los criterios.</p>'}${token?`<form data-form="advanced-cleanup-apply"><button class="btn btn-primary" type="submit">Aplicar a ${items.length} miembros</button></form>`:''}${button('Volver','advanced-cleanup')}`);
+  });
+  G.registerForm('advanced-cleanup-apply',async()=>{
+    const token=session?.cleanupToken;if(!token||!current())return;
+    const {items}=await actionPost('cleanup',{action:'apply',token});
+    session.cleanupToken=null;
+    sheet('Resultado de la poda',cleanupItems(items)+button('Volver','advanced-home'));
   });
   function delegateList(roles){
     const actions={delete:'Eliminar mensajes',pin:'Fijar mensajes'};

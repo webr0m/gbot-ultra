@@ -12,7 +12,7 @@ import { logModeration } from "../db/repositories/moderation.js";
 import { setMemberStatus } from "../db/repositories/members.js";
 import { clearWarnings, addWarning, countWarnings } from "../db/repositories/warnings.js";
 import type { ChatRow, GroupSettings } from "../db/types.js";
-import { advancedConfig, effectiveAdvanced } from './advanced-config.js';
+import { advancedConfig, effectiveAdvanced, saveAdvanced } from './advanced-config.js';
 import { logger } from "../logger.js";
 import { formatDuration, untilDateFromSeconds } from "../utils/duration.js";
 import { escapeHtml, mentionUser } from "../utils/format.js";
@@ -257,6 +257,38 @@ export async function removeReactions(context: ModerationContext, target: Target
     await writeLog(context, "remove_reactions", target, null, null, { messageId });
     return null;
   });
+}
+
+export async function setGroupReactionMode(context: ModerationContext, enabled: boolean): Promise<void> {
+  if (!hasFeature(context.chat, "reactions", context.actorId)) throw new ModerationError(tr("La moderación de reacciones requiere Pro."));
+  if (context.chat.type !== "supergroup") throw new ModerationError(tr("El bloqueo de reacciones del grupo requiere un supergrupo."));
+  await assertModerationRight(context, "can_restrict_members");
+  await applyGroupReactionMode(context, enabled);
+  await storeGroupReactionMode(context, enabled);
+  await writeLog(context, enabled ? "mute_reactions_group" : "unmute_reactions_group", null, null, null);
+}
+
+/** Telegram holds the effective permission; the remaining group rights are preserved. */
+export async function applyGroupReactionMode(context: ModerationContext, enabled: boolean): Promise<void> {
+  const chat = await context.api.getChat(context.chatId);
+  const permissions = chat.permissions;
+  if (!permissions) throw new ModerationError(tr("Telegram no informa los permisos del grupo."));
+  const muted = permissions.can_react_to_messages === false;
+  if (muted !== enabled) {
+    await context.api.setChatPermissions(context.chatId, { ...permissions, can_react_to_messages: !enabled });
+  }
+}
+
+async function storeGroupReactionMode(context: ModerationContext, enabled: boolean): Promise<void> {
+  try {
+    const record = await advancedConfig(context.chatId);
+    if (record.settings.reactions.muteAll === enabled) return;
+    const next = structuredClone(record.settings);
+    next.reactions.muteAll = enabled;
+    await saveAdvanced(context.chat, next, context.actorId, record.version);
+  } catch (error) {
+    logger.warn({ err: error, chatId: context.chatId }, tr("No se pudo guardar el estado del bloqueo de reacciones"));
+  }
 }
 
 function targetMention(target: TargetInfo): string {

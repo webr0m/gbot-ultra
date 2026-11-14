@@ -14,6 +14,7 @@ const forwardingDefaults = { actions: {}, durationSeconds: 600 };
 const textLimitDefaults = { patterns: '', maxLength: 0, action: 'delete' as const, durationSeconds: 600 };
 const articleDefaults = { welcome: null, rules: null };
 const discussionDefaults = { enabled: false, text: '' };
+const reactionDefaults = { muteAll: false, reportEmoji: '', autoDeleteAfter: 0 };
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const zone = z.string().max(80).refine(value => {try {new Intl.DateTimeFormat('en',{timeZone:value});return true;}catch{return false;}},'Zona horaria no válida');
 export const advancedSchema = z.object({
@@ -41,6 +42,11 @@ export const advancedSchema = z.object({
  richArticles:z.object({welcome:articleSchema.nullable(),rules:articleSchema.nullable()}).default(articleDefaults),
  discussion:z.object({enabled:z.boolean(),text:z.string().trim().max(1000)})
   .refine(value=>!value.enabled||Boolean(value.text),'Escribe el comentario automático.').default(discussionDefaults),
+ reactions:z.object({
+  muteAll:z.boolean(),
+  reportEmoji:z.string().trim().max(16),
+  autoDeleteAfter:z.number().int().min(0).max(50),
+ }).refine(value=>value.autoDeleteAfter===0||Boolean(value.reportEmoji),'Elige un emoji de reporte para usar el borrado automático.').default(reactionDefaults),
 }).strict().refine(v => !v.night.enabled || v.night.start !== v.night.end,{message:'El inicio y el fin del horario deben ser distintos'});
 export type AdvancedSettings = z.infer<typeof advancedSchema>;
 export const ADVANCED_DEFAULTS: AdvancedSettings = {
@@ -51,6 +57,7 @@ export const ADVANCED_DEFAULTS: AdvancedSettings = {
  probation:probationDefaults,forwarding:forwardingDefaults,textLimits:textLimitDefaults,
  richArticles:articleDefaults,
  discussion:discussionDefaults,
+ reactions:reactionDefaults,
 };
 export function normalizeAdvanced(raw: unknown): AdvancedSettings {
  const merged=structuredClone(ADVANCED_DEFAULTS);

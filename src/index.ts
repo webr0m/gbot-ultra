@@ -18,6 +18,7 @@ const ALLOWED_UPDATES = [
   "chat_boost",
   "removed_chat_boost",
   "pre_checkout_query",
+  "message_reaction",
 ] as const;
 
 function maskedToken(): string {

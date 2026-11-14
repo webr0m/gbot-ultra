@@ -9,10 +9,11 @@ import { many, one, query } from '../../db/pool.js';
 import { requireAuth, requireChat, bodyOf, parseChatId, ApiError } from '../helpers.js';
 import { advancedConfig, advancedSchema, saveAdvanced, invalidateAdvanced, TRUST_SCOPES, CONTENT_TYPES, FORWARD_ORIGINS, ADVANCED_DEFAULTS, type AdvancedSettings } from '../../services/advanced-config.js';
 import { ADVANCED_FEATURES, TIER_CATALOG, chatTier, hasFeature, type AdvancedFeature } from '../../services/entitlements.js';
-import { assertActorRight, muteReactions, removeReactions } from '../../services/moderation.js';
+import { assertActorRight, applyGroupReactionMode, muteReactions, removeReactions, setGroupReactionMode } from '../../services/moderation.js';
 import { apiIdentityForChat } from '../../services/branded-bots.js';
 import { createGroupInvite, listGroupInvites, revokeGroupInvite } from '../../services/group-invites.js';
 import { applyBulkModeration, bulkInputSchema, previewBulkModeration } from '../../services/bulk-moderation.js';
+import { applyMemberCleanup, cleanupCriteriaSchema, previewMemberCleanup } from '../../services/member-cleanup.js';
 import { DELEGATE_SCOPES, listDelegates, manageDelegate } from '../../services/delegated-roles.js';
 import { settingsOf } from '../../services/chat-cache.js';
 import { settingsPatchSchema } from '../../services/settings.js';
@@ -66,8 +67,13 @@ export function registerAdvancedRoutes(app:FastifyInstance,bot:Bot<AppContext>):
   }
   const changed = settingsDiff(current.settings, parsed.settings).map(diff=>diff.key);
   if(changed.includes('joinGate'))await assertActorRight(ctx,'can_invite_users');
-  if(['raid','locks','warningExpiry','night','probation','forwarding','textLimits'].some(key=>changed.includes(key)))await assertActorRight(ctx,'can_restrict_members');
+  if(['raid','locks','warningExpiry','night','probation','forwarding','textLimits','reactions'].some(key=>changed.includes(key)))await assertActorRight(ctx,'can_restrict_members');
   if(['forwarding','textLimits'].some(key=>changed.includes(key)))await assertActorRight(ctx,'can_delete_messages');
+  if(changed.includes('reactions')){
+   if(!hasFeature(chat,'reactions',auth.user.id))throw new ApiError(402,'Tu nivel no incluye '+ADVANCED_FEATURES.reactions.label+'.');
+   if(parsed.settings.reactions.muteAll&&chat.type!=='supergroup')throw new ApiError(400,'El bloqueo de reacciones del grupo requiere un supergrupo.');
+   await applyGroupReactionMode(ctx,parsed.settings.reactions.muteAll);
+  }
   return {ok:true,...await saveAdvanced(chat,parsed.settings,auth.user.id,parsed.version)};
  });
  app.get('/api/advanced/join-guard',async request=>{
@@ -117,7 +123,7 @@ export function registerAdvancedRoutes(app:FastifyInstance,bot:Bot<AppContext>):
   const b=bodyOf(request);const {chat,auth,ctx}=await access(request,parseChatId(b.chatId),'transfer');await assertActorRight(ctx,'can_restrict_members');
   const mode=z.enum(['preview','apply','restore-preview','restore']).parse(b.mode);const current=await advancedConfig(chat.chat_id);let target:AdvancedSettings;
   if(mode.startsWith('restore')){const version=z.number().int().min(0).parse(b.targetVersion);const row=await one('SELECT settings FROM advanced_history WHERE chat_id=$1 AND version=$2',[chat.chat_id,version]);if(!row)throw new ApiError(404,'Versión no encontrada.');target=advancedSchema.parse(row.settings);}
-  else {const file=transferSchema.parse(b.file);const sections=z.array(z.enum(['raid','locks','warningExpiry','night','filters','silent','joinGate','richNotes','observation','probation','forwarding','textLimits','discussion'])).min(1).max(13).parse(b.sections);target=structuredClone(current.settings);for(const key of sections)(target as Record<string,unknown>)[key]=file.advanced[key];}
+  else {const file=transferSchema.parse(b.file);const sections=z.array(z.enum(['raid','locks','warningExpiry','night','filters','silent','joinGate','richNotes','observation','probation','forwarding','textLimits','discussion','reactions'])).min(1).max(14).parse(b.sections);target=structuredClone(current.settings);for(const key of sections)(target as Record<string,unknown>)[key]=file.advanced[key];}
   for(const key of Object.keys(target) as (keyof AdvancedSettings)[])if(JSON.stringify(target[key])!==JSON.stringify(current.settings[key])&&!hasFeature(chat,key,auth.user.id))throw new ApiError(402,'Tu nivel no incluye '+ADVANCED_FEATURES[key].label+'.');
   if(JSON.stringify(target.joinGate)!==JSON.stringify(current.settings.joinGate))await assertActorRight(ctx,'can_invite_users');
   if(mode==='preview'||mode==='restore-preview')return {ok:true,diff:settingsDiff(current.settings,target),version:current.version,target};
@@ -138,11 +144,13 @@ export function registerAdvancedRoutes(app:FastifyInstance,bot:Bot<AppContext>):
    z.object({action:z.literal('mute'),userId:id,minutes:z.number().int().min(1).max(43200)}),
    z.object({action:z.literal('remove'),userId:id,messageId:id}),
    z.object({action:z.literal('clear'),userId:id}),
+   z.object({action:z.literal('group'),enabled:z.boolean()}),
   ]).parse(b);
-  const {ctx}=await access(request,parseChatId(b.chatId),'reactions',v.action==='mute'?'can_restrict_members':'can_delete_messages');
+  const {ctx}=await access(request,parseChatId(b.chatId),'reactions',v.action==='mute'||v.action==='group'?'can_restrict_members':'can_delete_messages');
   const identity=await apiIdentityForChat(ctx.chatId,ctx.api,ctx.botId);
-  const target={userId:v.userId,name:String(v.userId)};
+  const target={userId:'userId' in v?v.userId:0,name:'userId' in v?String(v.userId):''};
   if(v.action==='mute')await muteReactions({...ctx,...identity},target,v.minutes*60);
+  else if(v.action==='group')await setGroupReactionMode({...ctx,...identity},v.enabled);
   else await removeReactions({...ctx,...identity},target,v.action==='remove'?v.messageId:undefined);
   return {ok:true};
  });
@@ -171,6 +179,17 @@ export function registerAdvancedRoutes(app:FastifyInstance,bot:Bot<AppContext>):
   const identity=await apiIdentityForChat(ctx.chatId,ctx.api,ctx.botId);
   if(v.action==='preview')return {ok:true,...await previewBulkModeration({...ctx,...identity},v.input)};
   return {ok:true,...await applyBulkModeration({...ctx,...identity},v.token)};
+ });
+ app.post('/api/advanced/cleanup',async request=>{
+  const b=bodyOf(request);
+  const v=z.discriminatedUnion('action',[
+   z.object({action:z.literal('preview'),criteria:cleanupCriteriaSchema}),
+   z.object({action:z.literal('apply'),token:z.string().max(4000)}),
+  ]).parse(b);
+  const {ctx}=await access(request,parseChatId(b.chatId),'memberCleanup','can_restrict_members');
+  const identity=await apiIdentityForChat(ctx.chatId,ctx.api,ctx.botId);
+  if(v.action==='preview')return {ok:true,...await previewMemberCleanup({...ctx,...identity},v.criteria)};
+  return {ok:true,...await applyMemberCleanup({...ctx,...identity},v.token)};
  });
  app.post('/api/advanced/delegates',async request=>{
   const b=bodyOf(request);

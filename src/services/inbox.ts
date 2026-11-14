@@ -12,7 +12,8 @@ export const INBOX_KINDS=['report','join','visual','operation','publication','up
 export type InboxKind=typeof INBOX_KINDS[number];
 export async function rememberReport(chatId:number,reporterId:number,messageId:number,targetId?:number,excerpt?:string){
  const clean=excerpt?.replace(/(?:gsk_[a-zA-Z0-9]{20,}|sk-proj-[\w-]{20,}|\b\d{8,12}:[\w-]{30,})/g,'[credencial oculta]').slice(0,300);
- await query('INSERT INTO member_reports(chat_id,reporter_id,message_id,target_id,excerpt) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING',[chatId,reporterId,messageId,targetId??null,clean??null]);
+ const inserted=await query('INSERT INTO member_reports(chat_id,reporter_id,message_id,target_id,excerpt) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING id',[chatId,reporterId,messageId,targetId??null,clean??null]);
+ return Boolean(inserted.rowCount);
 }
 export async function rememberJoin(request:ChatJoinRequest){
  const requestId=randomUUID();

@@ -12,6 +12,7 @@ import { registerGeneral } from "./handlers/general.js";
 import { registerModeration } from "./handlers/moderation.js";
 import { registerOwner } from "./handlers/owner.js";
 import { registerPremium } from "./handlers/premium.js";
+import { registerReactionHandlers } from "./handlers/reactions.js";
 import { registerSettings } from "./handlers/settings.js";
 import { registerEvents } from "./events.js";
 import { attachContext, redirectGroupConfig } from "./middleware.js";
@@ -75,6 +76,8 @@ const GROUP_COMMANDS = [
   { command: "mutereactions", description: tr("Silenciar reacciones de un miembro · Pro") },
   { command: "delreactions", description: tr("Retirar reacciones de un mensaje · Pro") },
   { command: "clearreactions", description: tr("Retirar reacciones recientes de un miembro · Pro") },
+  { command: "rmute", description: tr("Bloquear las reacciones de todo el grupo · Pro") },
+  { command: "runmute", description: tr("Permitir las reacciones en el grupo · Pro") },
   { command: "anonmod", description: tr("Abrir moderación privada como administrador anónimo · Pro") },
   { command: "teamdelete", description: tr("Eliminar un mensaje con un rol temporal · Ultra") },
   { command: "teampin", description: tr("Fijar un mensaje con un rol temporal · Ultra") },
@@ -160,6 +163,7 @@ export function createBot(token=config.botToken,boundChat?:number): Bot<AppConte
   registerOwner(bot);
   registerCallbacks(bot);
   registerEvents(bot);
+  registerReactionHandlers(bot);
 
   return bot;
 }

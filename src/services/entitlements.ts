@@ -10,6 +10,7 @@ export const ADVANCED_FEATURES = {
  locks: { tier: 'premium', label: tr("Bloqueos por contenido") },
  forwarding: { tier: 'premium', label: tr("Reenvíos por origen") },
  probation: { tier: 'premium', label: tr("Permisos de nuevos miembros") },
+ memberCleanup: { tier: 'premium', label: tr("Poda de miembros inactivos") },
  textLimits: { tier: 'premium', label: tr("Patrones y longitud de mensajes") },
  trust: { tier: 'premium', label: tr("Usuarios de confianza") },
  warningExpiry: { tier: 'premium', label: tr("Caducidad de advertencias") },

@@ -15,6 +15,7 @@ import {
   muteUser,
   muteReactions,
   removeReactions,
+  setGroupReactionMode,
   pinMessage,
   promoteUser,
   purgeMessages,
@@ -149,6 +150,19 @@ export function registerModeration(bot: Bot<AppContext>): void {
         else await removeReactions(context, prepared.target);
       }
       await replyTemp(ctx, tr("✅ Moderación de reacciones aplicada."));
+    } catch (error) {
+      await handleModerationError(ctx, error);
+    }
+  });
+
+  bot.command(["rmute", "runmute"], async ctx => {
+    if (!(await ensureGroupAdmin(ctx)) || !(await guardAction(ctx))) return;
+    const command = ctx.msg.text.split(/[\s@]/, 1)[0]?.toLowerCase();
+    try {
+      await setGroupReactionMode(modContext(ctx), command === "/rmute");
+      await replyTemp(ctx, command === "/rmute"
+        ? tr("🔇 Las reacciones están bloqueadas para todo el grupo.")
+        : tr("🔊 Las reacciones están permitidas en el grupo."));
     } catch (error) {
       await handleModerationError(ctx, error);
     }

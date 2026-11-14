@@ -31,6 +31,12 @@ import { registerWorkspaceRoutes } from './routes/workspace.js';
 import { runtimeForChat,routedTelegramApi,brandWebhookRow,brandRuntime,updateChatId } from '../services/branded-bots.js';
 import { botExecution,setPrimaryBot,scopedBot } from '../services/bot-runtime.js';
 import { brandedWebhookSecret,vaultConfigured } from '../services/bot-vault.js';
+import { runInBackground } from './webhook.js';
+
+/** Payments must be answered inside Telegram's ten second window. */
+function needsSynchronousAnswer(update: Update): boolean {
+  return Boolean(update.pre_checkout_query) || Boolean(update.message?.successful_payment);
+}
 
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX_REQUESTS = 240;
@@ -167,8 +173,10 @@ export async function buildServer(primary: Bot<AppContext>): Promise<FastifyInst
       const runtime=/^(?:cap:|jg:)/.test(callback??'')?await brandRuntime(row):await runtimeForChat(row.chat_id);
       if(!runtime)return reply.send({ok:true,paused:true});
       const inserted=await query("INSERT INTO branded_update_receipts(bot_id,update_id,state) VALUES($1,$2,'pending') ON CONFLICT DO NOTHING RETURNING update_id",[row.bot_id,update.update_id]);if(!inserted.rowCount)return reply.send({ok:true,duplicate:true});
-      try{await botExecution.run(runtime,()=>runtime.bot.handleUpdate(update));await query("UPDATE branded_update_receipts SET state='done' WHERE bot_id=$1 AND update_id=$2",[row.bot_id,update.update_id]);}catch{await query("UPDATE branded_update_receipts SET state='uncertain' WHERE bot_id=$1 AND update_id=$2",[row.bot_id,update.update_id]);}
-      return reply.send({ok:true});
+      const process=async()=>{try{await botExecution.run(runtime,()=>runtime.bot.handleUpdate(update));await query("UPDATE branded_update_receipts SET state='done' WHERE bot_id=$1 AND update_id=$2",[row.bot_id,update.update_id]);}catch{await query("UPDATE branded_update_receipts SET state='uncertain' WHERE bot_id=$1 AND update_id=$2",[row.bot_id,update.update_id]);}};
+      if(needsSynchronousAnswer(update)){await process();return reply.send({ok:true});}
+      reply.send({ok:true});
+      runInBackground(process);
     });
     app.post("/telegram/webhook", async (request, reply) => {
       const secret = request.headers["x-telegram-bot-api-secret-token"];
@@ -182,9 +190,11 @@ export async function buildServer(primary: Bot<AppContext>): Promise<FastifyInst
         const inserted=await query("INSERT INTO update_receipts(update_id,state,chat_id) VALUES($1,'pending',$2) ON CONFLICT DO NOTHING RETURNING update_id",[update.update_id,chatId]);
         if(!inserted.rowCount)return reply.send({ok:true,duplicate:true});
       }
-      try{await bot.handleUpdate(update);if(tracked)await query("UPDATE update_receipts SET state='done' WHERE update_id=$1",[update.update_id]);}
-      catch(error){if(tracked)await query("UPDATE update_receipts SET state='uncertain' WHERE update_id=$1",[update.update_id]);throw error;}
-      return reply.send({ ok: true });
+      const process=async()=>{try{await bot.handleUpdate(update);if(tracked)await query("UPDATE update_receipts SET state='done' WHERE update_id=$1",[update.update_id]);}
+      catch(error){if(tracked)await query("UPDATE update_receipts SET state='uncertain' WHERE update_id=$1",[update.update_id]);throw error;}};
+      if(needsSynchronousAnswer(update)){await process();return reply.send({ok:true});}
+      reply.send({ok:true});
+      runInBackground(process);
     });
   }
 
