@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+ <title>API de GBot · Automatiza tu grupo</title>
+ <meta name="description" content="API de GBot para automatizaciones: moderación, miembros y estadísticas de tu grupo de Telegram desde tus propias herramientas. Claves por grupo con ámbitos.">
+ <meta name="theme-color" content="#050505">
+ <script>try{var t=localStorage.getItem('gbot-theme');document.documentElement.dataset.theme=t==='light'||t==='dark'?t:matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}catch{document.documentElement.dataset.theme=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}</script>
+ <link rel="icon" href="/gbot-mark.svg" type="image/svg+xml">
+ <style>
+  :root{--bg:#050505;--surface:#101216;--line:#23262e;--ink:#e9ecf1;--muted:#98a1b0;--accent:#4ea1ff;--accent-2:#8b5cf6;--radius:14px}
+  [data-theme="light"]{--bg:#f7f8fa;--surface:#fff;--line:#e3e6ec;--ink:#12151b;--muted:#5b6472}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px}
+  header{border-bottom:1px solid var(--line);background:var(--surface)}
+  header .wrap{display:flex;align-items:center;gap:16px;min-height:64px;flex-wrap:wrap}
+  .brand{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:18px;text-decoration:none;color:var(--ink)}
+  .brand img{width:28px;height:32px}
+  .brand-dot{color:var(--accent)}
+  nav{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap}
+  nav a{color:var(--muted);text-decoration:none;font-size:14px}
+  nav a:hover{color:var(--ink)}
+  .theme-toggle{margin-left:auto;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:8px 12px;font:inherit;font-size:13px;cursor:pointer}
+  main{padding:40px 0 64px}
+  .eyebrow{color:var(--accent);font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin:0 0 10px}
+  h1{font-size:clamp(28px,5vw,40px);line-height:1.15;margin:0 0 12px}
+  h2{font-size:22px;margin:40px 0 12px}
+  h3{font-size:16px;margin:0 0 6px}
+  .lead{color:var(--muted);font-size:17px;max-width:64ch}
+  p{max-width:70ch}
+  a{color:var(--accent)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:16px 0}
+  .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .grid .card{margin:0}
+  .badge{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted)}
+  .scope-read{color:#7dd3a0}.scope-moderate{color:#f0a868}
+  pre{background:#0b0d11;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#d7e0ee}
+  [data-theme="light"] pre{background:#f2f4f8}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
+  p code,li code,td code{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  thead th{color:var(--muted);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+  .method{font-weight:700;color:var(--accent);white-space:nowrap}
+  .method.post{color:#f0a868}
+  ul{padding-left:20px}
+  footer{border-top:1px solid var(--line);background:var(--surface);padding:24px 0}
+  footer .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:14px;color:var(--muted)}
+  footer a{color:var(--muted)}
+  .note{color:var(--muted);font-size:14px}
+  @media (max-width:560px){table{font-size:13px}th,td{padding:8px}}
+ </style>
+</head>
+<body>
+ <header>
+  <div class="wrap">
+   <a class="brand" href="/conoce" aria-label="GBot, inicio"><img src="/gbot-mark.svg" width="28" height="32" alt="">GBot<span class="brand-dot">.</span></a>
+   <nav aria-label="Navegación"><a href="/conoce">GBot</a><a href="https://t.me/GroupButlerEsp_bot">Abrir bot ↗</a><a href="/">Panel</a></nav>
+   <button class="theme-toggle" id="theme" type="button">Cambiar tema</button>
+  </div>
+ </header>
+ <main>
+  <div class="wrap">
+   <p class="eyebrow">API PARA AUTOMATIZACIONES · ULTRA</p>
+   <h1>Conecta el bot con tus propias herramientas.</h1>
+   <p class="lead">La API de GBot expone la moderación, los miembros y las estadísticas de un grupo para que tus scripts, bots de la comunidad o paneles externos trabajen con el mismo motor que usa el panel. Cada grupo tiene sus propias claves, sus propios ámbitos y su propio registro.</p>
+
+   <h2>Empezar</h2>
+   <div class="card">
+    <h3>1. Crea una clave en el panel</h3>
+    <p>Abre el panel desde el bot, entra en <strong>Ajustes → Centro Premium → API para automatizaciones</strong> y crea una clave con el ámbito que necesites. La clave se muestra una sola vez: guárdala en tu gestor de secretos.</p>
+    <h3>2. Llama a la API</h3>
+    <pre><code>curl https://gbot.webrom.cc/api/v1/me \
+  -H "Authorization: Bearer gbot_live_…"</code></pre>
+    <h3>3. Revisa el registro</h3>
+    <p>Cada acción de moderación hecha por la API queda en el historial del grupo, con el nombre de la clave que la originó.</p>
+   </div>
+
+   <h2>Autenticación y ámbitos</h2>
+   <div class="grid">
+    <div class="card"><span class="badge">CABECERA</span><h3>Bearer</h3><p>Cada petición incluye <code>Authorization: Bearer &lt;clave&gt;</code>. Una clave anulada deja de funcionar de inmediato.</p></div>
+    <div class="card"><span class="badge scope-read">ÁMBITO</span><h3>Lectura</h3><p>Permite consultar miembros, estadísticas, ajustes e historial de moderación. No aplica sanciones.</p></div>
+    <div class="card"><span class="badge scope-moderate">ÁMBITO</span><h3>Moderación</h3><p>Permite silenciar, expulsar, banear, avisar y revertir. Requiere además los permisos de administrador vigentes en Telegram.</p></div>
+    <div class="card"><span class="badge">LÍMITE</span><h3>60 por minuto</h3><p>Cada clave admite 60 peticiones por minuto. Las respuestas incluyen el margen disponible.</p></div>
+   </div>
+   <p class="note">Las claves son privadas de cada grupo. La API solo responde mientras el grupo mantiene el plan Ultra y la clave no está anulada. Las acciones nunca superan los permisos de Telegram del bot ni de la persona que creó la clave.</p>
+
+   <h2>Endpoints</h2>
+   <div class="card">
+    <table>
+     <thead><tr><th>Método</th><th>Ruta</th><th>Ámbito</th><th>Qué hace</th></tr></thead>
+     <tbody>
+      <tr><td class="method">GET</td><td><code>/api/v1</code></td><td>—</td><td>Referencia de la API en formato JSON.</td></tr>
+      <tr><td class="method">GET</td><td><code>/api/v1/me</code></td><td>lectura</td><td>Identidad del grupo y de la clave.</td></tr>
+      <tr><td class="method">GET</td><td><code>/api/v1/members</code></td><td>lectura</td><td>Miembros del grupo con estado, mensajes y advertencias.</td></tr>
+      <tr><td class="method">GET</td><td><code>/api/v1/stats</code></td><td>lectura</td><td>Actividad por día y totales del grupo.</td></tr>
+      <tr><td class="method">GET</td><td><code>/api/v1/settings</code></td><td>lectura</td><td>Ajustes vigentes del grupo.</td></tr>
+      <tr><td class="method">GET</td><td><code>/api/v1/moderation/log</code></td><td>lectura</td><td>Historial de moderación con actor y motivo.</td></tr>
+      <tr><td class="method post">POST</td><td><code>/api/v1/moderation</code></td><td>moderación</td><td>Silencia, expulsa, banea, desbanea, desilencia o avisa a un miembro.</td></tr>
+     </tbody>
+    </table>
+   </div>
+
+   <h2>Ejemplos</h2>
+   <div class="card">
+    <h3>Miembros que participan poco</h3>
+    <pre><code>curl "https://gbot.webrom.cc/api/v1/members?limit=50" \
+  -H "Authorization: Bearer gbot_live_…"</code></pre>
+    <h3>Silenciar a un usuario una hora</h3>
+    <pre><code>curl -X POST https://gbot.webrom.cc/api/v1/moderation \
+  -H "Authorization: Bearer gbot_live_…" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"mute","userId":123456789,"durationSeconds":3600,"reason":"Cuenta en observación"}'</code></pre>
+    <h3>Actividad de la última semana</h3>
+    <pre><code>curl "https://gbot.webrom.cc/api/v1/stats?days=7" \
+  -H "Authorization: Bearer gbot_live_…"</code></pre>
+   </div>
+
+   <h2>Errores y seguridad</h2>
+   <div class="card">
+    <ul>
+     <li><code>401</code> falta la clave, es inválida o está anulada.</li>
+     <li><code>402</code> el grupo ya no mantiene el plan Ultra.</li>
+     <li><code>403</code> la clave no tiene el ámbito necesario o el actor carece de permisos vigentes.</li>
+     <li><code>404</code> el grupo ya no está disponible.</li>
+     <li><code>429</code> se superó el límite de 60 peticiones por minuto.</li>
+    </ul>
+    <p class="note">No incluyas claves en URLs, capturas ni mensajes del grupo. Anula una clave en cuanto dejes de usarla: el registro del grupo conserva quién la creó y cuándo se anuló. GBot no envía datos de tu grupo a servicios de terceros al responder por la API.</p>
+   </div>
+
+   <p class="note">GBot es una herramienta de Webrom para comunidades en Telegram. <a href="/conoce#privacidad">Política de privacidad</a>.</p>
+  </div>
+ </main>
+ <footer>
+  <div class="wrap">
+   <span>GBot · API para automatizaciones</span>
+   <a href="/conoce">Conoce GBot</a>
+   <a href="https://t.me/GroupButlerEsp_bot">Abrir bot ↗</a>
+   <a href="https://t.me/webrom_bot" target="_blank" rel="noopener">Contacto · @webrom_bot ↗</a>
+  </div>
+ </footer>
+ <script>
+  (function(){var b=document.getElementById('theme');if(!b)return;b.addEventListener('click',function(){var n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('gbot-theme',n)}catch(e){}});})();
+ </script>
+</body>
+</html>

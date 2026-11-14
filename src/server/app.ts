@@ -1,5 +1,7 @@
 import { registerBroadcastRoutes } from "./routes/broadcasts.js";
 import { registerQualityUndoRoutes } from "./routes/quality-undo.js";
+import { registerApiAccessRoutes } from "./routes/api-access.js";
+import { registerApiPublicRoutes } from "./routes/api-public.js";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { timingSafeEqual } from "node:crypto";
@@ -65,7 +67,7 @@ export async function buildServer(primary: Bot<AppContext>): Promise<FastifyInst
   await app.register(cors, {
     origin: true,
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "X-Telegram-Init-Data", "X-Dev-User"],
+    allowedHeaders: ["Content-Type", "X-Telegram-Init-Data", "X-Dev-User", "Authorization"],
     maxAge: 86_400,
   });
 
@@ -77,7 +79,7 @@ export async function buildServer(primary: Bot<AppContext>): Promise<FastifyInst
       const chatId=Number(q?.chat_id??q?.chatId??b?.chatId??b?.chat_id);
       // Images authenticate with their signed capability, since <img> cannot
       // attach the Mini App session header. The image handler verifies it first.
-      const needsRuntime=request.url.startsWith('/api/')&&!request.url.startsWith('/api/avatar/')&&!request.url.startsWith('/api/premium')&&!request.url.startsWith('/api/ultra')&&Number.isSafeInteger(chatId)&&chatId<0;
+      const needsRuntime=request.url.startsWith('/api/')&&!request.url.startsWith('/api/avatar/')&&!request.url.startsWith('/api/premium')&&!request.url.startsWith('/api/ultra')&&!request.url.startsWith('/api/v1')&&Number.isSafeInteger(chatId)&&chatId<0;
       if(needsRuntime)requireAuth(request);
       const runtime=needsRuntime?await runtimeForChat(chatId):null;
       return runtime?botExecution.run(runtime,()=>original.call(this,request,reply)):original.call(this,request,reply);
@@ -150,7 +152,10 @@ export async function buildServer(primary: Bot<AppContext>): Promise<FastifyInst
   registerWorkspaceRoutes(app,primary);
   registerQualityUndoRoutes(app,primary);
   registerBroadcastRoutes(app);
+  registerApiAccessRoutes(app, bot);
+  registerApiPublicRoutes(app, bot);
   app.get('/conoce',async (_request,reply)=>reply.type('text/html; charset=utf-8').sendFile('conoce.html'));
+  app.get('/apidocs',async (_request,reply)=>reply.type('text/html; charset=utf-8').sendFile('apidocs.html'));
   app.get('/comparar',async (_request,reply)=>reply.redirect('/conoce#comparativa'));
 
   // Keep provider scripts outside public: LiteSpeed can bypass Node for static HTML.

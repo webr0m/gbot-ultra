@@ -206,7 +206,7 @@ export interface ModerationContext {
   botId: number;
   actorId: number;
   actorName: string;
-  source?: "bot" | "miniapp";
+  source?: "bot" | "miniapp" | "api";
   publicLogFallback?:boolean;
 }
 
