@@ -1,6 +1,6 @@
 # GBot Ultra
 
-Bot de administración de grupos de Telegram con Mini App, moderación y planes mediante Telegram Stars. Versión 2.11.0.
+Bot de administración de grupos de Telegram con Mini App, moderación y planes mediante Telegram Stars. Versión 2.12.0.
 
 - Captcha, antienlaces, antiflood, lista negra, advertencias y registro de moderación.
 - Moderación de artículos enriquecidos, bots invitados y ediciones; bloqueos opcionales de Live Photos, historias, spoilers y otros contenidos (Premium).
@@ -9,7 +9,7 @@ Bot de administración de grupos de Telegram con Mini App, moderación y planes 
 - Publicaciones programadas, filtro visual NSFW opcional, notas y automatizaciones.
 - Bloqueo de reacciones de todo el grupo y reporte mediante un emoji de reacción, con borrado opcional del mensaje (Pro).
 - Poda de miembros inactivos por días de silencio, con vista previa y resultado por miembro (Premium).
-- API para automatizaciones con claves por grupo, ámbitos de lectura y moderación, y límite de peticiones (Ultra).
+- API y servidor MCP para automatizaciones con claves por grupo, ámbitos de lectura y moderación, y límite de peticiones (Ultra).
 - Calidad de reglas con tendencias y revisión manual de falsos positivos (Ultra).
 - Reversión de baneos y silencios nuevos con vista previa y permisos comprobados (Pro).
 - Asistente de IA opcional, bots con marca propia y Alianzas con revisión local (Ultra).
@@ -41,9 +41,11 @@ En **Mini App → Moderación**, o con `/quality` y `/undo`. Las métricas cubre
 
 Solo se pueden deshacer baneos y silencios nuevos con estado previo guardado. La vista previa vence en cinco minutos y se vuelve a comprobar el estado antes de confirmar. No recupera mensajes borrados ni reincorpora usuarios. Los resultados inciertos requieren revisión manual y no se repiten automáticamente. Los baneos globales, CAS y decisiones de Alianzas se gestionan por sus herramientas propias.
 
-## API para automatizaciones
+## API y MCP para automatizaciones
 
 La API pública expone un grupo a herramientas externas y requiere el plan Ultra de ese grupo. Las claves se crean en el panel, se guardan cifradas solo como hash y se muestran una sola vez; cada clave tiene sus ámbitos de lectura o moderación y un límite de 60 peticiones por minuto. Las acciones quedan en el registro de moderación del grupo con la clave que las originó. La referencia está en `public/apidocs.html` y se publica en `/apidocs`.
+
+El mismo grupo publica un servidor MCP con transporte Streamable HTTP en `/mcp`, autenticado con la misma clave y limitado por el mismo ámbito. Habla la revisión `2026-07-28` del protocolo y acepta el saludo clásico de los clientes anteriores. Expone `list_members`, `get_stats`, `get_settings`, `list_moderation_log` y `moderate_user`, que aplica el mismo control de permisos y el mismo registro que el panel.
 
 ## Configuración privada
 

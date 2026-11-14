@@ -1,4 +1,4 @@
-/* API para automatizaciones: claves por grupo con ámbitos y una referencia de uso. */
+/* API y MCP para automatizaciones: claves por grupo con ámbitos, API REST y servidor MCP. */
 (() => {
   "use strict";
   const G = window.GBot;
@@ -32,15 +32,23 @@
     if (!current()) return;
     const keys = session.keys || [];
     sheet(
-      "API para automatizaciones",
-      `<div class="adv-intro"><span class="badge">ULTRA</span><h3>Tu bot, desde tus herramientas.</h3><p>Crea claves para conectar tus automatizaciones con la moderación, los miembros y las estadísticas del grupo. Cada clave pertenece solo a este grupo.</p></div><div class="card"><p>Referencia de la API: <a href="/apidocs" target="_blank" rel="noopener">gbot.webrom.cc/apidocs ↗</a></p><p>Límite: 60 peticiones por minuto y clave. Ámbitos: lectura y moderación.</p></div>${keys.length ? `<h4>Claves de este grupo</h4>${keys.map((k) => `<div class="card"><strong>${esc(k.name)}</strong><p class="mono">${esc(k.prefix)}…</p><p>${esc(scopeNames(k))} · ${k.requests} peticiones · ${k.lastUsedAt ? "último uso " + esc(G.fmtDateTime(k.lastUsedAt)) : "sin uso"}</p>${k.revoked ? "<p>Anulada.</p>" : `<div class="adv-tools">${button("Anular", "api-access-revoke", `data-id="${esc(k.id)}"`)}</div>`}</div>`).join("")}` : "<p>Todavía no hay claves en este grupo.</p>"}<div class="card"><h4>Crear una clave</h4><p>La clave se muestra una sola vez. Guárdala en tu gestor de secretos: después solo verás su prefijo.</p><form data-form="api-access-create">${field("Nombre de la clave", '<input class="input" name="name" maxlength="48" required placeholder="Ejemplo: Moderación automática">')}<label class="adv-check"><input type="checkbox" name="read" checked>Lectura: miembros, estadísticas, ajustes e historial.</label><label class="adv-check"><input type="checkbox" name="moderate">Moderación: silenciar, expulsar, banear, avisar y revertir.</label><div class="sheet-actions"><button type="submit" class="btn btn-primary">Crear clave</button></div></form></div>`,
+      "API y MCP para automatizaciones",
+      `<div class="adv-intro"><span class="badge">ULTRA</span><h3>Tu bot, desde tus herramientas.</h3><p>Crea claves para conectar tus automatizaciones con la moderación, los miembros y las estadísticas del grupo. Cada clave pertenece solo a este grupo.</p></div><div class="card"><p>Referencia de la API: <a href="/apidocs" target="_blank" rel="noopener">gbot.webrom.cc/apidocs ↗</a></p><p>Límite: 60 peticiones por minuto y clave. Ámbitos: lectura y moderación.</p></div><div class="card"><h4>Servidor MCP</h4><p>Conecta un agente de IA a <strong>https://gbot.webrom.cc/mcp</strong> con la misma clave y el mismo ámbito.</p><pre class="mono">{
+  "mcpServers": {
+    "gbot": {
+      "type": "http",
+      "url": "https://gbot.webrom.cc/mcp",
+      "headers": { "Authorization": "Bearer &lt;clave&gt;" }
+    }
+  }
+}</pre><p>Herramientas: <code>list_members</code>, <code>get_stats</code>, <code>get_settings</code>, <code>list_moderation_log</code> y <code>moderate_user</code>.</p></div>${keys.length ? `<h4>Claves de este grupo</h4>${keys.map((k) => `<div class="card"><strong>${esc(k.name)}</strong><p class="mono">${esc(k.prefix)}…</p><p>${esc(scopeNames(k))} · ${k.requests} peticiones · ${k.lastUsedAt ? "último uso " + esc(G.fmtDateTime(k.lastUsedAt)) : "sin uso"}</p>${k.revoked ? "<p>Anulada.</p>" : `<div class="adv-tools">${button("Anular", "api-access-revoke", `data-id="${esc(k.id)}"`)}</div>`}</div>`).join("")}` : "<p>Todavía no hay claves en este grupo.</p>"}<div class="card"><h4>Crear una clave</h4><p>La clave se muestra una sola vez. Guárdala en tu gestor de secretos: después solo verás su prefijo.</p><form data-form="api-access-create">${field("Nombre de la clave", '<input class="input" name="name" maxlength="48" required placeholder="Ejemplo: Moderación automática">')}<label class="adv-check"><input type="checkbox" name="read" checked>Lectura: miembros, estadísticas, ajustes e historial.</label><label class="adv-check"><input type="checkbox" name="moderate">Moderación: silenciar, expulsar, banear, avisar y revertir.</label><div class="sheet-actions"><button type="submit" class="btn btn-primary">Crear clave</button></div></form></div>`,
     );
   }
   G.registerAction("api-access-open", async () => {
     const id = G.state.chat?.id;
     if (!id) return;
     const seq = ++sequence;
-    G.openSheet({ title: "API para automatizaciones", body: "<p>Cargando…</p>" });
+    G.openSheet({ title: "API y MCP para automatizaciones", body: "<p>Cargando…</p>" });
     const version = G.state.sheetVersion;
     session = { chatId: id, version, keys: [] };
     try {
@@ -83,7 +91,7 @@
     await load();
     sheet(
       "Guarda tu clave",
-      `<div class="card"><h3>Esta clave no volverá a mostrarse.</h3><p class="mono">${esc(secret)}</p><div class="adv-tools">${button("Copiar", "api-access-copy", `data-secret="${esc(secret)}"`)}${button("Volver", "api-access-home")}</div><p>Úsala como <strong>Authorization: Bearer &lt;clave&gt;</strong> contra <strong>https://gbot.webrom.cc/api/v1</strong>.</p></div>`,
+      `<div class="card"><h3>Esta clave no volverá a mostrarse.</h3><p class="mono">${esc(secret)}</p><div class="adv-tools">${button("Copiar", "api-access-copy", `data-secret="${esc(secret)}"`)}${button("Volver", "api-access-home")}</div><p>Úsala como <strong>Authorization: Bearer &lt;clave&gt;</strong> contra <strong>https://gbot.webrom.cc/api/v1</strong> o <strong>https://gbot.webrom.cc/mcp</strong>.</p></div>`,
     );
   });
   G.registerAction("api-access-copy", async (target) => {
@@ -110,7 +118,7 @@
     }
     tools.insertAdjacentHTML(
       "beforeend",
-      button("API para automatizaciones", "api-access-open"),
+      button("API y MCP para automatizaciones", "api-access-open"),
     );
   };
   if (G.DEMO) {

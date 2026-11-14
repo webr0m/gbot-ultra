@@ -34,7 +34,7 @@ export const ADVANCED_FEATURES = {
  inbox:{tier:'pro',label:tr("Bandeja unificada")},
  inboxGroups:{tier:'ultra',label:tr("Bandeja de varios grupos")},
  alliances: { tier: 'ultra', label: tr("Alianzas GBot") },
- apiAccess: { tier: 'ultra', label: tr("API para automatizaciones") },
+ apiAccess: { tier: 'ultra', label: tr("API y MCP para automatizaciones") },
  observation: { tier: 'ultra', label: tr("Observación y simulador") },
  ai:{tier:'ultra',label:tr("Asistente de IA")},
  branding:{tier:'ultra',label:tr("Bot con marca propia")},

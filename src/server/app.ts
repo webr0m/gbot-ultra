@@ -2,6 +2,7 @@ import { registerBroadcastRoutes } from "./routes/broadcasts.js";
 import { registerQualityUndoRoutes } from "./routes/quality-undo.js";
 import { registerApiAccessRoutes } from "./routes/api-access.js";
 import { registerApiPublicRoutes } from "./routes/api-public.js";
+import { registerMcpRoutes } from "./routes/mcp.js";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { timingSafeEqual } from "node:crypto";
@@ -120,7 +121,7 @@ export async function buildServer(primary: Bot<AppContext>): Promise<FastifyInst
 
   const rate = new Map<string, RateEntry>();
   app.addHook("onRequest", async (request, reply) => {
-    if (!request.url.startsWith("/api/")) return;
+    if (!request.url.startsWith("/api/") && !request.url.startsWith("/mcp")) return;
     const key = request.ip;
     const now = Date.now();
     const entry = rate.get(key);
@@ -154,6 +155,7 @@ export async function buildServer(primary: Bot<AppContext>): Promise<FastifyInst
   registerBroadcastRoutes(app);
   registerApiAccessRoutes(app, bot);
   registerApiPublicRoutes(app, bot);
+  registerMcpRoutes(app, bot);
   app.get('/conoce',async (_request,reply)=>reply.type('text/html; charset=utf-8').sendFile('conoce.html'));
   app.get('/apidocs',async (_request,reply)=>reply.type('text/html; charset=utf-8').sendFile('apidocs.html'));
   app.get('/comparar',async (_request,reply)=>reply.redirect('/conoce#comparativa'));
