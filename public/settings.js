@@ -456,21 +456,26 @@
     const content = state.content;
 
     const currentLang = (s.language || "es");
-    const langName = (G.LANGUAGES.find((l) => l.code === currentLang) || G.LANGUAGES[0]).name;
-    const langFlag = (G.LANGUAGES.find((l) => l.code === currentLang) || G.LANGUAGES[0]).flag;
+    const langName = (G.GROUP_LANGUAGES.find((l) => l.code === currentLang) || G.GROUP_LANGUAGES[0]).name;
+    const langFlag = (G.GROUP_LANGUAGES.find((l) => l.code === currentLang) || G.GROUP_LANGUAGES[0]).flag;
+    const panelLanguage = G.LANGUAGES.find((l) => l.code === G.currentLang());
     box.innerHTML =
       planBanner() +
       '<section class="section"><div class="section-header"><div><div class="section-title">' +
       G.icon("i-settings") +
-      ' Idioma</div><div class="section-subtitle">Idioma del grupo y del panel</div></div></div>' +
+      ' Idioma</div><div class="section-subtitle">Panel automático según tu cliente de Telegram</div></div></div>' +
+      '<div class="card settings-card"><div class="settings-card-title">Idioma del panel: <span class="notranslate" translate="no">' +
+      G.esc(panelLanguage.flag + " " + panelLanguage.name) +
+      '</span></div><div class="settings-card-desc">Se detecta automáticamente desde Telegram. Si no está disponible, se usa inglés. Para cambiarlo, cambia el idioma de Telegram.</div></div>' +
       '<div class="card"><div class="row-between wrap"><div><div class="settings-card-title">' +
+      'Respuestas del grupo: <span class="notranslate" translate="no">' +
       langFlag +
       " " +
       G.esc(langName) +
-      '</div><div class="settings-card-desc" style="margin:0">Traduce el panel y las respuestas del bot. Los textos personalizados se conservan.</div></div>' +
+      '</span></div><div class="settings-card-desc" style="margin:0">Solo cambia los mensajes compartidos del bot en el grupo, no el idioma de tu panel. Los textos personalizados se conservan.</div></div>' +
       '<button class="btn btn-secondary btn-sm" type="button" data-action="change-language">' +
       G.icon("i-settings") +
-      " Cambiar idioma</button></div></div></section>" +
+      " Cambiar idioma del grupo</button></div></div></section>" +
       '<section class="section"><div class="section-header"><div><div class="section-title">' +
       G.icon("i-zap") +
       ' Funciones</div><div class="section-subtitle">Moderación automática y avisos del grupo</div></div></div>' +
@@ -562,7 +567,7 @@
     state.settings = result.settings;
     if (state.bootstrap) state.bootstrap.settings = result.settings;
     if (state.tab === "settings") G.renderSettings();
-    G.applyLanguage(result.settings.language);
+    G.applyClientLanguage();
     G.toast(message || "Ajustes guardados.", "success");
     return true;
   }
@@ -1398,7 +1403,7 @@
   G.registerAction("change-language", () => {
     const s = settings();
     const current = (s && s.language) || "es";
-    const options = (G.LANGUAGES || [])
+    const options = (G.GROUP_LANGUAGES || [])
       .map(
         (lang) =>
           '<button class="list-item" type="button" data-action="set-language" data-lang="' +
@@ -1414,15 +1419,15 @@
       )
       .join("");
     G.openSheet({
-      title: "Idioma",
-      subtitle: "Elige el idioma del panel y de las respuestas del grupo",
+      title: "Idioma del grupo",
+      subtitle: "Solo cambia las respuestas del bot. El panel sigue el idioma de tu Telegram.",
       body: '<div class="list notranslate" translate="no">' + options + "</div>",
     });
   });
 
   let changingLanguage = false;
   G.changeLanguage = async function changeLanguage(code) {
-    if (changingLanguage || !settings() || !G.LANGUAGES.some((lang) => lang.code === code)) return;
+    if (changingLanguage || !settings() || !G.GROUP_LANGUAGES.some((lang) => lang.code === code)) return;
     changingLanguage = true;
     try {
       if (await guardedSave({ language: code }, "Idioma actualizado.")) G.closeSheet();

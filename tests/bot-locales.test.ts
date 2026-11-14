@@ -4,6 +4,7 @@ import inventory from '../src/i18n/bot-message-manifest.json';
 import {BOT_LANGUAGES,tr,withBotLanguage,normalizeBotLanguage,botLanguage} from '../src/services/bot-i18n.js';
 import {startPrivate,helpText,rulesText} from '../src/bot/texts.js';
 import {formatDuration,parseDuration} from '../src/utils/duration.js';
+import {SUPPORTED_LANGUAGES,t,isSupportedLanguage} from '../src/i18n/index.js';
 
 const records=catalog as Record<string,Record<string,string>>;
 const protectedTokens=(text:string)=>[...text.matchAll(/\{[^{}]+\}|<[^>]+>|https?:\/\/[^\s<>]+|(?<![^\s>])\/[a-z][a-z_0-9]*(?![\p{L}\p{N}_])|&(?:[a-z]+|#\d+);/giu)].map(m=>m[0]).sort();
@@ -15,7 +16,21 @@ describe('complete local Telegram catalogs',()=>{
    expect(tags(target)).toEqual(tags(key));expect(emojis(target)).toEqual(emojis(key));expect(target).not.toContain('\uFFFD');
   }
  });
- it('normalizes Telegram locales and falls back to Spanish',()=>{expect(normalizeBotLanguage('pt-BR')).toBe('pt');expect(normalizeBotLanguage('zh_CN')).toBe('zh');expect(normalizeBotLanguage('invalid')).toBe('es');expect(tr('Uncatalogued custom text')).toBe('Uncatalogued custom text');});
+  it('uses the same twenty languages for Telegram, group selectors and the catalog manifest',()=>{
+   expect(BOT_LANGUAGES).toHaveLength(20);
+   expect(SUPPORTED_LANGUAGES.map(language=>language.code)).toEqual([...BOT_LANGUAGES]);
+   expect(inventory.languages).toEqual([...BOT_LANGUAGES]);
+   for(const language of BOT_LANGUAGES){expect(isSupportedLanguage(language)).toBe(true);expect(t('chooseLanguage',language)).not.toBe('chooseLanguage');}
+   expect(isSupportedLanguage('invalid')).toBe(false);
+  });
+  it('normalizes Telegram locales and falls back to English',()=>{
+   expect(normalizeBotLanguage('pt-BR')).toBe('pt');expect(normalizeBotLanguage('zh_CN')).toBe('zh');
+   expect(normalizeBotLanguage(' JA-jp ')).toBe('ja');expect(normalizeBotLanguage('fa_IR')).toBe('fa');
+   expect(normalizeBotLanguage('invalid')).toBe('en');expect(normalizeBotLanguage(undefined)).toBe('en');
+   expect(tr('📚 Ayuda',[],'invalid')).toBe(records.en['📚 Ayuda']);
+   expect(t('chooseLanguage','invalid')).toBe(t('chooseLanguage','en'));
+   expect(tr('Uncatalogued custom text')).toBe('Uncatalogued custom text');
+  });
  it('keeps simultaneous group languages isolated across await boundaries',async()=>{
   const values=await Promise.all(['en','pt','fr'].map(language=>withBotLanguage(language,async()=>{await new Promise(r=>setTimeout(r,5));return {language:botLanguage(),text:tr('📚 Ayuda')};})));
   expect(values.map(v=>v.language)).toEqual(['en','pt','fr']);expect(new Set(values.map(v=>v.text)).size).toBe(3);expect(botLanguage()).toBe('es');

@@ -8,7 +8,7 @@ import {config,webappUrlForChat} from '../config.js';
 import {hasFeature} from '../services/entitlements.js';
 import {primaryBot} from '../services/bot-runtime.js';
 import {withBotLanguage} from '../services/bot-i18n.js';
-import {SUPPORTED_LANGUAGES} from '../i18n/index.js';
+import {SUPPORTED_LANGUAGES,isSupportedLanguage} from '../i18n/index.js';
 import {savePrivateLanguage} from '../services/language-preferences.js';
 
 export function registerWorkspaceBot(bot:Bot<AppContext>){
@@ -37,9 +37,11 @@ export function registerWorkspaceBot(bot:Bot<AppContext>){
  bot.command('setup',ctx=>open(ctx,'setup',ctx.chat?.type==='private'?undefined:ctx.chat?.id));
  bot.command('inbox',ctx=>open(ctx,'inbox',ctx.chat?.type==='private'?undefined:ctx.chat?.id));
  bot.command('start',async(ctx,next)=>{const match=String(ctx.match??'').match(/^workspace_(setup|inbox|quality|undo)_(-\d+)$/);if(!match)return next();return open(ctx,match[1] as 'setup'|'inbox'|'quality'|'undo',Number(match[2]));});
- bot.callbackQuery(/^private_lang:(es|en|pt|fr|de|it|ru|tr|ar|zh)$/,async ctx=>{
+  bot.callbackQuery(/^private_lang:([a-z]{2})$/,async ctx=>{
   if(ctx.chat?.type!=='private'){await ctx.answerCallbackQuery();return;}
-  const code=ctx.match[1];await savePrivateLanguage(ctx,code);
+   const code=ctx.match[1];
+   if(!isSupportedLanguage(code)){await ctx.answerCallbackQuery({text:tr('Idioma no válido.'),show_alert:true});return;}
+   await savePrivateLanguage(ctx,code);
   await withBotLanguage(code,async()=>{await ctx.answerCallbackQuery({text:tr("Idioma actualizado.")});await ctx.reply(tr("El idioma de tus respuestas privadas se ha actualizado. Los grupos conservan su propio idioma."));});
  });
  bot.command('language',async(ctx,next)=>{

@@ -1,4 +1,4 @@
-import { tr } from "./bot-i18n.js";
+import { tr, BOT_LANGUAGES } from "./bot-i18n.js";
 import { z } from "zod";
 import { config } from "../config.js";
 import type { GroupSettings } from "../db/types.js";
@@ -155,7 +155,7 @@ export const settingsPatchSchema = z.object({
   serviceMessages: z.object({ deleteJoins: z.boolean().optional() }).optional(),
   joinRequests: z.object({ autoApprove: z.boolean().optional() }).optional(),
   language: z
-    .enum(["es", "en", "pt", "fr", "de", "it", "ru", "tr", "ar", "zh"])
+    .enum(BOT_LANGUAGES)
     .optional(),
 });
 

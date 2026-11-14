@@ -8,7 +8,7 @@ function coreHarness() {
   const window: any = { location: { search: "" }, scrollTo: vi.fn() };
   runInNewContext(readFileSync(new URL("../public/core.js", import.meta.url), "utf8"), { window, document, URLSearchParams, URL, Intl, Date, setTimeout, clearTimeout, localStorage: { getItem: () => null }, AbortController });
   const G = window.GBot;
-  G.updateHeader = vi.fn(); G.renderTab = vi.fn(); G.renderLoading = vi.fn(); G.applyLanguage = vi.fn(); G.toast = vi.fn();
+  G.updateHeader = vi.fn(); G.renderTab = vi.fn(); G.renderLoading = vi.fn(); G.applyClientLanguage = vi.fn(); G.toast = vi.fn();
   G.state.chat = { id: 1 }; G.state.chats = [{ id: 1 }, { id: 2 }];
   return { G, listeners };
 }
@@ -27,6 +27,7 @@ describe("Mini App request boundaries", () => {
     expect(G.state.chat.id).toBe(2);
     expect(G.state.bootstrap.chat.id).toBe(2);
     expect(G.renderTab).toHaveBeenCalledTimes(1);
+    expect(G.applyClientLanguage).toHaveBeenCalledExactlyOnceWith();
   });
   it("does not report a successful refresh when loading fails", async () => {
     const { G } = coreHarness();

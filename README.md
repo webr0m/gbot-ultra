@@ -4,7 +4,8 @@ Bot de administración de grupos de Telegram con Mini App, moderación y planes 
 
 - Captcha, antienlaces, antiflood, lista negra, advertencias y registro de moderación.
 - Moderación de artículos enriquecidos, bots invitados y ediciones; bloqueos opcionales de Live Photos, historias, spoilers y otros contenidos (Premium).
-- Instalación guiada, bandeja de revisiones y respuestas en diez idiomas.
+- Instalación guiada, bandeja de revisiones y respuestas en veinte idiomas, seleccionables desde el menú del grupo.
+- Mini App en 20 idiomas, elegidos automáticamente según el cliente de Telegram; inglés si el idioma no está disponible. El idioma compartido de las respuestas del grupo se configura por separado y no cambia el del panel.
 - Publicaciones programadas, filtro visual NSFW opcional, notas y automatizaciones.
 - Calidad de reglas con tendencias y revisión manual de falsos positivos (Ultra).
 - Reversión de baneos y silencios nuevos con vista previa y permisos comprobados (Pro).

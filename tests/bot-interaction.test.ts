@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ member: vi.fn(), chat: vi.fn() }));
+const mocks = vi.hoisted(() => ({ member: vi.fn(), chat: vi.fn(), saveLanguage: vi.fn() }));
 vi.mock("../src/config.js", () => ({ config: { ownerIds: new Set([900000001]), hasWebapp: true, webappUrl: "https://gbot.webrom.cc", captchaTimeoutSeconds: 300 }, webappUrlForChat: (id: number, tab: string) => `https://gbot.webrom.cc/?chat_id=${id}${tab && tab !== "home" ? "&tab="+tab : ""}` }));
 vi.mock("../src/logger.js", () => ({ logger: { warn: vi.fn(), error: vi.fn() } }));
 vi.mock("../src/db/pool.js", () => ({ one: vi.fn(), many: vi.fn(), query: vi.fn(), withTransaction: vi.fn() }));
 vi.mock("../src/db/repositories/chats.js", () => ({ getChat: mocks.chat }));
+vi.mock("../src/services/language-preferences.js", () => ({ contextLanguage: vi.fn(async()=>"es"), savePrivateLanguage: mocks.saveLanguage }));
 vi.mock("../src/utils/telegram.js", () => ({ getChatMemberSafe: mocks.member, isAdminStatus: (status: string) => ["creator", "administrator"].includes(status), isGroupChat: (chat: any) => ["group", "supergroup"].includes(chat.type) }));
 import { redirectGroupConfig } from "../src/bot/middleware.js";
 import { showPanel } from "../src/bot/panel.js";
 import { chatSelectionKeyboard } from "../src/bot/keyboards.js";
+import { registerWorkspaceBot } from "../src/bot/workspace.js";
+import { BOT_LANGUAGES } from "../src/services/bot-i18n.js";
 
 function ctx(text: string, owner = false): any {
   return { chat: { id: -1001, type: "supergroup" }, message: { text }, from: { id: owner ? 900000001 : 123 }, me: { username: "GroupButlerEsp_bot" }, app: { isOwner: owner, isAdmin: true, chatRow: { chat_id: -1001 } }, reply: vi.fn() };
@@ -52,5 +55,42 @@ describe("bot to Mini App entry", () => {
     const keyboard = chatSelectionKeyboard(chats as never, 12).inline_keyboard;
     expect(JSON.stringify(keyboard)).toContain("premium:chat:-77");
     expect(JSON.stringify(keyboard)).toContain("premium:page:11");
+  });
+});
+
+describe("Telegram language selectors", () => {
+  function registeredBot() {
+    const bot = { command: vi.fn(), callbackQuery: vi.fn() };
+    registerWorkspaceBot(bot as never);
+    return bot;
+  }
+
+  it("includes all twenty languages in the private language keyboard", async () => {
+    const bot = registeredBot(), context = ctx("/language");
+    context.chat.type = "private";
+    const handler = bot.command.mock.calls.find(([name])=>name==="language")![1];
+    await handler(context, vi.fn());
+    const buttons = context.reply.mock.calls[0][1].reply_markup.inline_keyboard.flat();
+    expect(buttons.map((button: any)=>button.callback_data)).toEqual(BOT_LANGUAGES.map(code=>"private_lang:"+code));
+  });
+
+  it.each(["uk","pl","nl","ro","ja","ko","hi","id","vi","fa"])("handles the newly offered %s callback", async code => {
+    const bot = registeredBot(), context = ctx("/language");
+    context.chat.type = "private";context.answerCallbackQuery = vi.fn();
+    const [trigger, handler] = bot.callbackQuery.mock.calls.find(([pattern])=>pattern.test("private_lang:"+code))!;
+    context.match = trigger.exec("private_lang:"+code);
+    await handler(context);
+    expect(mocks.saveLanguage).toHaveBeenCalledExactlyOnceWith(context, code);
+    expect(context.answerCallbackQuery).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a forged unsupported language callback", async () => {
+    const bot = registeredBot(), context = ctx("/language");
+    context.chat.type = "private";context.answerCallbackQuery = vi.fn();
+    const [trigger,handler] = bot.callbackQuery.mock.calls[0];
+    context.match = trigger.exec("private_lang:zz");
+    await handler(context);
+    expect(mocks.saveLanguage).not.toHaveBeenCalled();
+    expect(context.answerCallbackQuery).toHaveBeenCalledWith(expect.objectContaining({show_alert:true}));
   });
 });

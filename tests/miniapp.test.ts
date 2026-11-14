@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const source = (file: string) => readFileSync(new URL(`../public/${file}`, import.meta.url), "utf8");
 
-function harness() {
+function harness(language?: string) {
   const scripts: any[] = [];
   const G: any = {
     state: { settings: { language: "es" }, bootstrap: {}, chat: { id: 1 }, tab: "home" },
@@ -12,11 +12,12 @@ function harness() {
     registerAction: vi.fn(), registerForm: vi.fn(), registerInput: vi.fn(),
     api: { patch: vi.fn(), get: vi.fn() },
   };
-  const window: any = { GBot: G };
+  const window: any = { GBot: G, Telegram: { WebApp: { initDataUnsafe: { user: { language_code: language } } } } };
   const context = {
     window, setTimeout, clearTimeout,
     localStorage: { removeItem: vi.fn() },
     document: {
+      documentElement: { lang: "es", dir: "ltr" },
       readyState: "loading", addEventListener: vi.fn(), querySelectorAll: () => [],
       getElementById: () => null,
       createElement: () => ({ remove: vi.fn() }),
@@ -33,6 +34,60 @@ function harness() {
 }
 
 describe("Mini App translation", () => {
+  it.each([
+    ["es", "es"], ["en-US", "en"], ["pt-BR", "pt"], ["zh_CN", "zh"],
+    ["UK-ua", "uk"], ["ja-JP", "ja"], ["id_ID", "id"], ["fa-IR", "fa"],
+    ["invalid", "en"], ["sv", "en"], ["", "en"], [undefined, "en"],
+  ])("detects Telegram locale %s as %s, independently of the group", (client, expected) => {
+    const h = harness(client);
+    h.G.state.settings.language = "fr";
+    expect(h.G.currentLang()).toBe(expected);
+    h.G.state.settings.language = "de";
+    expect(h.G.currentLang()).toBe(expected);
+  });
+
+  it("uses the verified Telegram locale if the SDK has no locale", () => {
+    const h = harness();
+    h.G.state.bootstrap.user = { languageCode: "ko-KR" };
+    expect(h.G.currentLang()).toBe("ko");
+    h.window.Telegram.WebApp.initDataUnsafe.user.language_code = "nl-NL";
+    expect(h.G.currentLang()).toBe("nl");
+    h.window.Telegram.WebApp.initDataUnsafe.user.language_code = "unsupported";
+    expect(h.G.currentLang()).toBe("en");
+  });
+
+  it("provides local navigation and appearance translations in all 20 panel languages", () => {
+    const h = harness();
+    expect(h.G.LANGUAGES).toHaveLength(20);
+    expect(new Set(h.G.LANGUAGES.map((lang: any) => lang.code)).size).toBe(20);
+    const keys = ["home", "members", "moderation", "settings", "premium", "changeTheme", "groups", "changeGroup", "appearance", "nightMode", "dayMode"];
+    for (const { code } of h.G.LANGUAGES) {
+      for (const key of keys) expect(h.G.t(key, code)).not.toBe(key);
+    }
+    expect(h.G.t("settings", "unsupported")).toBe("Settings");
+    expect(h.G.t("settings", "pt-BR")).toBe("Ajustes");
+  });
+
+  it("translates the entire panel into English for an unavailable Telegram language", async () => {
+    const h = harness("sv-SE");
+    const pending = h.G.applyClientLanguage();
+    h.ready();
+    await pending;
+    expect(h.engine.translate).toHaveBeenCalledWith("es", "en");
+    expect(h.context.document.documentElement).toMatchObject({ lang: "en", dir: "ltr" });
+  });
+
+  it.each(["ar", "fa"])("sets right-to-left layout for %s and restores it for English", async (language) => {
+    const h = harness(language);
+    const pending = h.G.applyClientLanguage();
+    h.ready();
+    await pending;
+    expect(h.context.document.documentElement).toMatchObject({ lang: language, dir: "rtl" });
+    h.window.Telegram.WebApp.initDataUnsafe.user.language_code = "en";
+    await h.G.applyClientLanguage();
+    expect(h.context.document.documentElement).toMatchObject({ lang: "en", dir: "ltr" });
+  });
+
   it("does not load the external translator for Spanish", async () => {
     const h = harness();
     await h.G.applyLanguage("es");
@@ -75,7 +130,7 @@ describe("Mini App translation", () => {
     const pending = h.G.applyLanguage("en");
     h.scripts[0].onerror();
     await pending;
-    expect(h.G.toast).toHaveBeenCalledWith(expect.stringContaining("traductor"), "error");
+    expect(h.G.toast).toHaveBeenCalledWith(expect.stringContaining("translator"), "error");
     const retry = h.G.applyLanguage("en");
     expect(h.scripts).toHaveLength(2);
     h.ready();
@@ -83,17 +138,42 @@ describe("Mini App translation", () => {
     expect(h.engine.translate).toHaveBeenCalledWith("es", "en");
   });
 
-  it("saves language changes without replacing the active screen", async () => {
-    const h = harness();
+  it("saves the group language without overriding the client's panel language", async () => {
+    const h = harness("ja-JP");
     runInNewContext(source("settings.js"), h.context);
     h.G.renderSettings = vi.fn();
-    h.G.applyLanguage = vi.fn();
+    h.G.applyClientLanguage = vi.fn();
     h.G.api.patch.mockResolvedValue({ settings: { language: "en" } });
     await h.G.changeLanguage("en");
     expect(h.G.api.patch).toHaveBeenCalledWith("/api/settings", { chatId: 1, patch: { language: "en" } });
     expect(h.G.state.settings.language).toBe("en");
-    expect(h.G.applyLanguage).toHaveBeenCalledWith("en");
+    expect(h.G.applyClientLanguage).toHaveBeenCalledWith();
+    expect(h.G.currentLang()).toBe("ja");
     expect(h.G.renderSettings).not.toHaveBeenCalled();
+  });
+
+  it("renders all twenty languages in the group selector", () => {
+    const h = harness("en");
+    runInNewContext(source("settings.js"), h.context);
+    h.G.esc = (value: unknown) => String(value);
+    h.G.openSheet = vi.fn();
+    const open = h.G.registerAction.mock.calls.find(([name]: any[]) => name === "change-language")?.[1];
+    open();
+    expect(h.G.GROUP_LANGUAGES).toHaveLength(20);
+    const sheet = h.G.openSheet.mock.calls[0][0];
+    expect((sheet.body.match(/data-action="set-language"/g) || [])).toHaveLength(20);
+    for (const language of h.G.LANGUAGES) expect(sheet.body).toContain('data-lang="' + language.code + '"');
+  });
+
+  it.each(["uk", "pl", "nl", "ro", "ja", "ko", "hi", "id", "vi", "fa"])("saves new group language %s without changing the Telegram panel locale", async (language) => {
+    const h = harness("pt-BR");
+    runInNewContext(source("settings.js"), h.context);
+    h.G.api.patch.mockResolvedValue({ settings: { language } });
+    h.G.applyClientLanguage = vi.fn();
+    await h.G.changeLanguage(language);
+    expect(h.G.api.patch).toHaveBeenCalledWith("/api/settings", { chatId: 1, patch: { language } });
+    expect(h.G.state.settings.language).toBe(language);
+    expect(h.G.currentLang()).toBe("pt");
   });
 
   it("keeps the saved language if updating it fails", async () => {
@@ -102,6 +182,25 @@ describe("Mini App translation", () => {
     h.G.api.patch.mockRejectedValue(new Error("Network unavailable"));
     await expect(h.G.changeLanguage("en")).rejects.toThrow("Network unavailable");
     expect(h.G.state.settings.language).toBe("es");
+  });
+});
+
+describe("Mini App automatic language lifecycle", () => {
+  it("applies the client language on startup and when reopening the Mini App", () => {
+    const h = harness("pl-PL");
+    h.G.boot = vi.fn().mockResolvedValue(undefined);
+    h.G.applyClientLanguage = vi.fn();
+    h.context.document.readyState = "complete";
+    runInNewContext(source("start.js"), h.context);
+    expect(h.G.applyClientLanguage).toHaveBeenCalledOnce();
+    expect(h.G.boot).toHaveBeenCalledOnce();
+    const handler = h.context.document.addEventListener.mock.calls.find(([event]: any[]) => event === "visibilitychange")?.[1];
+    Object.assign(h.context.document, { visibilityState: "hidden" });
+    handler();
+    expect(h.G.applyClientLanguage).toHaveBeenCalledOnce();
+    Object.assign(h.context.document, { visibilityState: "visible" });
+    handler();
+    expect(h.G.applyClientLanguage).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -3,7 +3,7 @@
  'use strict';const G=window.GBot;if(!G)return;const esc=G.esc;
  let session=null,poll=null;
  const names={draft:'Borrador',preparing:'Preparando audiencia',ready:'Lista para revisar',queued:'En cola',sending:'Enviando',paused:'Pausada',completed:'Finalizada',cancelled:'Cancelada',admins:'Propietarios y administradores',users:'Usuarios del bot',both:'Administradores y usuarios'};
- const languages={es:'Español',en:'English',pt:'Português',fr:'Français',de:'Deutsch',it:'Italiano',ru:'Русский',tr:'Türkçe',ar:'العربية',zh:'中文'};
+ const languages=Object.fromEntries(G.LANGUAGES.map(({code,name})=>[code,name]));
  const current=()=>session&&G.state.sheetOpen&&session.view===G.state.sheetVersion;
  const button=(text,action,extra='')=>`<button type="button" class="btn btn-secondary btn-sm" data-action="broadcast-${action}" ${extra}>${esc(text)}</button>`;
  function stop(){if(poll)clearTimeout(poll);poll=null;}

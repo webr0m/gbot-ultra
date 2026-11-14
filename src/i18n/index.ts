@@ -9,6 +9,16 @@ export const SUPPORTED_LANGUAGES = [
   { code: "tr", name: "Türkçe", flag: "🇹🇷" },
   { code: "ar", name: "العربية", flag: "🇸🇦" },
   { code: "zh", name: "中文", flag: "🇨🇳" },
+  { code: "uk", name: "Українська", flag: "🇺🇦" },
+  { code: "pl", name: "Polski", flag: "🇵🇱" },
+  { code: "nl", name: "Nederlands", flag: "🇳🇱" },
+  { code: "ro", name: "Română", flag: "🇷🇴" },
+  { code: "ja", name: "日本語", flag: "🇯🇵" },
+  { code: "ko", name: "한국어", flag: "🇰🇷" },
+  { code: "hi", name: "हिन्दी", flag: "🇮🇳" },
+  { code: "id", name: "Bahasa Indonesia", flag: "🇮🇩" },
+  { code: "vi", name: "Tiếng Việt", flag: "🇻🇳" },
+  { code: "fa", name: "فارسی", flag: "🇮🇷" },
 ] as const;
 
 export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number]["code"];
@@ -124,11 +134,62 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     openPanel: "打开面板",
     groupConfig: "配置群组",
   },
+  uk: {
+    welcome: "Ласкаво просимо!", help: "Довідка та команди", settings: "Налаштування групи",
+    premium: "Преміум", error: "Сталася помилка.", languageChanged: "Мову оновлено.",
+    chooseLanguage: "Виберіть мову бота:", openPanel: "Відкрити панель", groupConfig: "Налаштувати групу",
+  },
+  pl: {
+    welcome: "Witaj!", help: "Pomoc i polecenia", settings: "Ustawienia grupy",
+    premium: "Premium", error: "Wystąpił błąd.", languageChanged: "Język zaktualizowany.",
+    chooseLanguage: "Wybierz język bota:", openPanel: "Otwórz panel", groupConfig: "Skonfiguruj grupę",
+  },
+  nl: {
+    welcome: "Welkom!", help: "Hulp en opdrachten", settings: "Groepsinstellingen",
+    premium: "Premium", error: "Er is een fout opgetreden.", languageChanged: "Taal bijgewerkt.",
+    chooseLanguage: "Kies de taal van de bot:", openPanel: "Paneel openen", groupConfig: "Groep instellen",
+  },
+  ro: {
+    welcome: "Bun venit!", help: "Ajutor și comenzi", settings: "Setările grupului",
+    premium: "Premium", error: "A apărut o eroare.", languageChanged: "Limba a fost actualizată.",
+    chooseLanguage: "Alege limba botului:", openPanel: "Deschide panoul", groupConfig: "Configurează grupul",
+  },
+  ja: {
+    welcome: "ようこそ！", help: "ヘルプとコマンド", settings: "グループ設定",
+    premium: "プレミアム", error: "エラーが発生しました。", languageChanged: "言語を更新しました。",
+    chooseLanguage: "ボットの言語を選択してください：", openPanel: "パネルを開く", groupConfig: "グループを設定",
+  },
+  ko: {
+    welcome: "환영합니다!", help: "도움말 및 명령어", settings: "그룹 설정",
+    premium: "프리미엄", error: "오류가 발생했습니다.", languageChanged: "언어가 변경되었습니다.",
+    chooseLanguage: "봇 언어를 선택하세요:", openPanel: "패널 열기", groupConfig: "그룹 설정하기",
+  },
+  hi: {
+    welcome: "स्वागत है!", help: "सहायता और कमांड", settings: "समूह सेटिंग्स",
+    premium: "प्रीमियम", error: "एक त्रुटि हुई।", languageChanged: "भाषा अपडेट की गई।",
+    chooseLanguage: "बॉट की भाषा चुनें:", openPanel: "पैनल खोलें", groupConfig: "समूह कॉन्फ़िगर करें",
+  },
+  id: {
+    welcome: "Selamat datang!", help: "Bantuan dan perintah", settings: "Pengaturan grup",
+    premium: "Premium", error: "Terjadi kesalahan.", languageChanged: "Bahasa diperbarui.",
+    chooseLanguage: "Pilih bahasa bot:", openPanel: "Buka panel", groupConfig: "Konfigurasi grup",
+  },
+  vi: {
+    welcome: "Chào mừng!", help: "Trợ giúp và lệnh", settings: "Cài đặt nhóm",
+    premium: "Premium", error: "Đã xảy ra lỗi.", languageChanged: "Đã cập nhật ngôn ngữ.",
+    chooseLanguage: "Chọn ngôn ngữ của bot:", openPanel: "Mở bảng điều khiển", groupConfig: "Cấu hình nhóm",
+  },
+  fa: {
+    welcome: "خوش آمدید!", help: "راهنما و دستورات", settings: "تنظیمات گروه",
+    premium: "ویژه", error: "خطایی رخ داد.", languageChanged: "زبان به‌روزرسانی شد.",
+    chooseLanguage: "زبان ربات را انتخاب کنید:", openPanel: "باز کردن پنل", groupConfig: "پیکربندی گروه",
+  },
 };
 
-export function t(key: string, lang: string = "es"): string {
-  const code = (SUPPORTED_LANGUAGES.find((l) => l.code === lang)?.code ?? "es") as LanguageCode;
-  return translations[code]?.[key] ?? translations.es[key] ?? key;
+export function t(key: string, lang: string = "en"): string {
+  const normalized = lang.trim().toLowerCase().split(/[-_]/)[0];
+  const code = (SUPPORTED_LANGUAGES.find((l) => l.code === normalized)?.code ?? "en") as LanguageCode;
+  return translations[code]?.[key] ?? translations.en[key] ?? key;
 }
 
 export function isSupportedLanguage(lang: string): lang is LanguageCode {

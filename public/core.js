@@ -499,7 +499,7 @@
     G.closeSheet();
     main.innerHTML =
       '<div class="auth-screen"><div class="card auth-card">' +
-      '<div class="auth-logo">GB</div>' +
+      '<div class="auth-logo"><img src="/brand/gbot-profile-20261113.jpg" width="76" height="76" alt="GBot" /></div>' +
       '<div class="auth-title">Abre el panel desde Telegram</div>' +
       '<div class="auth-text">Por seguridad, el panel solo funciona dentro de Telegram. ' +
       "Abre el bot, pulsa <b>Panel de control</b> y vuelve a entrar.</div>" +
@@ -531,7 +531,7 @@
     if (nav) nav.hidden = true;
     main.innerHTML =
       '<div class="auth-screen"><div class="card auth-card">' +
-      '<div class="auth-logo">GB</div>' +
+      '<div class="auth-logo"><img src="/brand/gbot-profile-20261113.jpg" width="76" height="76" alt="GBot" /></div>' +
       '<div class="auth-title">Aún no hay grupos</div>' +
       '<div class="auth-text">Añade a <b>@' +
       G.BOT_USERNAME +
@@ -660,7 +660,7 @@
       state.settings = data.settings;
       state.lastUpdated = data.serverTime || new Date().toISOString();
       if (!data.chat.premium.active && !data.access?.owner) state.chartDays = 7;
-      G.applyLanguage(data.settings.language);
+      G.applyClientLanguage();
       state.chat = Object.assign({}, state.chat, {
         title: data.chat.title,
         username: data.chat.username,

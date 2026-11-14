@@ -18,6 +18,16 @@
     { code: "tr", name: "Türkçe", flag: "🇹🇷" },
     { code: "ar", name: "العربية", flag: "🇸🇦" },
     { code: "zh", name: "中文", flag: "🇨🇳" },
+    { code: "uk", name: "Українська", flag: "🇺🇦" },
+    { code: "pl", name: "Polski", flag: "🇵🇱" },
+    { code: "nl", name: "Nederlands", flag: "🇳🇱" },
+    { code: "ro", name: "Română", flag: "🇷🇴" },
+    { code: "ja", name: "日本語", flag: "🇯🇵" },
+    { code: "ko", name: "한국어", flag: "🇰🇷" },
+    { code: "hi", name: "हिन्दी", flag: "🇮🇳" },
+    { code: "id", name: "Bahasa Indonesia", flag: "🇮🇩" },
+    { code: "vi", name: "Tiếng Việt", flag: "🇻🇳" },
+    { code: "fa", name: "فارسی", flag: "🇮🇷" },
   ];
 
   const STRINGS = {
@@ -81,20 +91,93 @@
       groups: "你的群组", changeGroup: "切换群组",
       appearance: "外观", nightMode: "夜间模式", dayMode: "日间模式",
     },
+    uk: {
+      home: "Головна", members: "Учасники", moderation: "Модерація",
+      settings: "Налаштування", premium: "Преміум", changeTheme: "Змінити тему",
+      groups: "Ваші групи", changeGroup: "Змінити групу",
+      appearance: "Вигляд", nightMode: "Нічний режим", dayMode: "Денний режим",
+    },
+    pl: {
+      home: "Start", members: "Członkowie", moderation: "Moderacja",
+      settings: "Ustawienia", premium: "Premium", changeTheme: "Zmień motyw",
+      groups: "Twoje grupy", changeGroup: "Zmień grupę",
+      appearance: "Wygląd", nightMode: "Tryb nocny", dayMode: "Tryb dzienny",
+    },
+    nl: {
+      home: "Start", members: "Leden", moderation: "Moderatie",
+      settings: "Instellingen", premium: "Premium", changeTheme: "Thema wijzigen",
+      groups: "Je groepen", changeGroup: "Groep wijzigen",
+      appearance: "Weergave", nightMode: "Nachtmodus", dayMode: "Dagmodus",
+    },
+    ro: {
+      home: "Acasă", members: "Membri", moderation: "Moderare",
+      settings: "Setări", premium: "Premium", changeTheme: "Schimbă tema",
+      groups: "Grupurile tale", changeGroup: "Schimbă grupul",
+      appearance: "Aspect", nightMode: "Mod de noapte", dayMode: "Mod de zi",
+    },
+    ja: {
+      home: "ホーム", members: "メンバー", moderation: "モデレーション",
+      settings: "設定", premium: "プレミアム", changeTheme: "テーマを変更",
+      groups: "あなたのグループ", changeGroup: "グループを変更",
+      appearance: "外観", nightMode: "夜間モード", dayMode: "昼間モード",
+    },
+    ko: {
+      home: "홈", members: "멤버", moderation: "관리",
+      settings: "설정", premium: "프리미엄", changeTheme: "테마 변경",
+      groups: "내 그룹", changeGroup: "그룹 변경",
+      appearance: "화면", nightMode: "야간 모드", dayMode: "주간 모드",
+    },
+    hi: {
+      home: "होम", members: "सदस्य", moderation: "मॉडरेशन",
+      settings: "सेटिंग्स", premium: "प्रीमियम", changeTheme: "थीम बदलें",
+      groups: "आपके समूह", changeGroup: "समूह बदलें",
+      appearance: "दिखावट", nightMode: "रात्रि मोड", dayMode: "दिन मोड",
+    },
+    id: {
+      home: "Beranda", members: "Anggota", moderation: "Moderasi",
+      settings: "Pengaturan", premium: "Premium", changeTheme: "Ubah tema",
+      groups: "Grup Anda", changeGroup: "Ganti grup",
+      appearance: "Tampilan", nightMode: "Mode malam", dayMode: "Mode siang",
+    },
+    vi: {
+      home: "Trang chủ", members: "Thành viên", moderation: "Kiểm duyệt",
+      settings: "Cài đặt", premium: "Premium", changeTheme: "Đổi giao diện",
+      groups: "Nhóm của bạn", changeGroup: "Đổi nhóm",
+      appearance: "Giao diện", nightMode: "Chế độ ban đêm", dayMode: "Chế độ ban ngày",
+    },
+    fa: {
+      home: "خانه", members: "اعضا", moderation: "مدیریت",
+      settings: "تنظیمات", premium: "ویژه", changeTheme: "تغییر پوسته",
+      groups: "گروه‌های شما", changeGroup: "تغییر گروه",
+      appearance: "ظاهر", nightMode: "حالت شب", dayMode: "حالت روز",
+    },
   };
 
   G.LANGUAGES = LANGUAGES;
+  // All panel languages also have local bot catalogs for shared group replies.
+  // Selecting a group language still never overrides the client's panel language.
+  G.GROUP_LANGUAGES = LANGUAGES;
+  G.normalizeLanguage = function normalizeLanguage(value) {
+    const code = typeof value === "string" ? value.trim().toLowerCase().split(/[-_]/)[0] : "";
+    return LANGUAGES.some((lang) => lang.code === code) ? code : "en";
+  };
   G.t = function t(key, lang) {
-    const code = LANGUAGES.some((l) => l.code === lang) ? lang : "es";
-    return (STRINGS[code] && STRINGS[code][key]) || (STRINGS.es && STRINGS.es[key]) || key;
+    const code = G.normalizeLanguage(lang);
+    return (STRINGS[code] && STRINGS[code][key]) || STRINGS.en[key] || key;
   };
   G.currentLang = function currentLang() {
-    const s = G.state && (G.state.settings || (G.state.bootstrap && G.state.bootstrap.settings));
-    return (s && s.language) || "es";
+    // Telegram is authoritative. Never use the group's setting, browser locale
+    // or a cached selection to choose a user's Mini App language.
+    const client = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
+    const verified = G.state?.bootstrap?.user?.languageCode;
+    return G.normalizeLanguage(client ?? verified);
   };
 
-  // Belcanto's dropdown.js uses this same engine. Load it directly so our
-  // Settings control the saved language without a second floating selector.
+  G.applyClientLanguage = function applyClientLanguage() {
+    return G.applyLanguage(G.currentLang());
+  };
+
+  // Reuse the existing full-panel translator without adding a language widget.
   let enginePromise = null;
   let appliedLanguage = null;
   let requestId = 0;
@@ -107,7 +190,7 @@
       function fail() {
         clearTimeout(timeout);
         script.remove();
-        reject(new Error("No se pudo cargar el traductor. Revisa tu conexión y vuelve a elegir el idioma."));
+        reject(new Error("Could not load the translator. Check your connection and reload the Mini App."));
       }
       script.src = "https://cdn.gtranslate.net/widgets/latest/lib.min.js";
       script.async = true;
@@ -118,8 +201,7 @@
         clearTimeout(timeout);
         resolve(engine);
       };
-      // The group setting is authoritative; do not restore another group's
-      // previously cached language while the engine initializes.
+      // A previously cached selection must not override the Telegram client.
       try { localStorage.removeItem("__GT_TRANSLATE_LANGS"); } catch { /* Storage may be unavailable in a WebView. */ }
       document.body.appendChild(script);
     }).catch((error) => {
@@ -130,7 +212,9 @@
   }
 
   G.applyLanguage = async function applyLanguage(code) {
-    const lang = LANGUAGES.some((item) => item.code === code) ? code : "es";
+    const lang = G.normalizeLanguage(code);
+    document.documentElement.lang = lang === "zh" ? "zh-CN" : lang;
+    document.documentElement.dir = ["ar", "fa"].includes(lang) ? "rtl" : "ltr";
     document.querySelectorAll(".nav-item[data-tab]").forEach((button) => {
       const label = button.querySelector("span");
       if (label) label.textContent = G.t(button.dataset.tab, lang);
@@ -148,10 +232,10 @@
       engine.resultCallback = () => {
         if (!engine.error) return;
         appliedLanguage = null;
-        G.toast("No se pudo traducir el panel. Revisa tu conexión y vuelve a elegir el idioma.", "error");
+        G.toast("Could not translate the panel. Check your connection and reload the Mini App.", "error");
       };
       if (!engine.translate("es", lang === "zh" ? "zh-CN" : lang)) {
-        throw new Error("El traductor no está disponible. Vuelve a elegir el idioma.");
+        throw new Error("The translator is unavailable. Reload the Mini App to retry.");
       }
       appliedLanguage = lang;
     } catch (error) {
