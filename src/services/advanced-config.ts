@@ -1,9 +1,10 @@
 import { z } from 'zod';
 import { many, one, withTransaction } from '../db/pool.js';
 import type { ChatRow } from '../db/types.js';
-import { hasFeature, type AdvancedFeature } from './entitlements.js';
+import { chatTier, hasFeature, type AdvancedFeature } from './entitlements.js';
 import { ReadCache } from './read-cache.js';
 import { articleSchema } from './rich-articles.js';
+import { clampTextRules, parseTextRules, textRuleLimits, TEXT_RULE_LIMITS, TERM_MAX_LENGTH } from './text-rules.js';
 
 export const CONTENT_TYPES = ['sticker','gif','voice','audio','video','photo','document','forward','invite','anonymous','poll','rich_message','guest_bot','live_photo','story','spoiler','custom_emoji','giveaway','external_reply'] as const;
 export const TRUST_SCOPES = ['locks','raid','captcha','blacklist','antilink','antiflood'] as const;
@@ -11,12 +12,23 @@ export const FORWARD_ORIGINS = ['person','bot','hidden_user','chat','channel'] a
 const contentAction = z.enum(['delete','warn','mute','ban']);
 const probationDefaults = { enabled: false, minutes: 120 };
 const forwardingDefaults = { actions: {}, durationSeconds: 600 };
-const textLimitDefaults = { patterns: '', maxLength: 0, action: 'delete' as const, durationSeconds: 600 };
+const textLimitDefaults = { patterns: '', exceptions: '', maxLength: 0, action: 'delete' as const, durationSeconds: 600 };
 const articleDefaults = { welcome: null, rules: null };
 const discussionDefaults = { enabled: false, text: '' };
 const reactionDefaults = { muteAll: false, reportEmoji: '', autoDeleteAfter: 0 };
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const zone = z.string().max(80).refine(value => {try {new Intl.DateTimeFormat('en',{timeZone:value});return true;}catch{return false;}},'Zona horaria no válida');
+// Structural ceiling of the richest tier; the tier budget is enforced on save.
+const textBlock = z.string().trim().max(TEXT_RULE_LIMITS.ultra.chars).refine(value => {
+  const lines = value.split('\n').filter((line) => line.trim() && !line.trim().startsWith('#'));
+  if (lines.length > TEXT_RULE_LIMITS.ultra.rules) return false;
+  return lines.every((line) => {
+    const head = line.replace(/^!+/, '').split('::')[0] ?? '';
+    const terms = head.split('&&').map((term) => term.trim()).filter((term) => term.length > 0);
+    if (!terms.length || terms.length > TEXT_RULE_LIMITS.ultra.terms) return false;
+    return terms.every((term) => term.length <= TERM_MAX_LENGTH && term.replaceAll('*', '').trim().length >= 2);
+  });
+}, 'Revisa las reglas: una por línea, hasta 15 términos por regla y al menos dos caracteres literales por término.');
 export const advancedSchema = z.object({
  raid: z.object({enabled:z.boolean(), threshold:z.number().int().min(3).max(500), windowSeconds:z.number().int().min(10).max(300), durationSeconds:z.number().int().min(60).max(86400), action:z.enum(['captcha','mute','ban']), sanctionSeconds:z.number().int().min(60).max(86400)}),
  locks: z.object({enabled:z.boolean(), types:z.array(z.enum(CONTENT_TYPES)).max(CONTENT_TYPES.length), action:contentAction, durationSeconds:z.number().int().min(60).max(2592000)}),
@@ -31,10 +43,8 @@ export const advancedSchema = z.object({
  probation:z.object({enabled:z.boolean(),minutes:z.number().int().min(1).max(10080)}).default(probationDefaults),
  forwarding:z.object({actions:z.partialRecord(z.enum(FORWARD_ORIGINS),contentAction),durationSeconds:z.number().int().min(60).max(2592000)}).default(forwardingDefaults),
  textLimits:z.object({
-  patterns:z.string().trim().max(2000).refine(value=>value.split('\n').filter(line=>line.trim()).length<=30&&value.split('\n').filter(line=>line.trim()).every(line=>{
-   const terms=line.split('&&');
-   return terms.length<=5&&terms.every(term=>term.replaceAll('*','').trim().length>=2);
-  }),'Usa hasta 30 reglas con un máximo de 5 términos por línea y al menos dos caracteres literales por término.'),
+  patterns:textBlock,
+  exceptions:textBlock,
   maxLength:z.number().int().min(0).max(100000),
   action:contentAction,
   durationSeconds:z.number().int().min(60).max(2592000),
@@ -74,6 +84,11 @@ export function invalidateAdvanced(chatId:number):void{cache.invalidate(String(c
 export function effectiveAdvanced(chat:ChatRow,settings:AdvancedSettings,actorId?:number):AdvancedSettings{
  const result=structuredClone(settings);
  for(const key of Object.keys(result) as (keyof AdvancedSettings)[]){if(!hasFeature(chat,key as AdvancedFeature,actorId))(result as Record<string,unknown>)[key]=structuredClone(ADVANCED_DEFAULTS[key]);}
+ // A downgrade keeps the configuration but stops enforcing the rules that the tier no longer covers.
+ const limits=textRuleLimits(chatTier(chat,actorId));
+ const clamped=clampTextRules(result.textLimits.patterns,result.textLimits.exceptions,limits);
+ result.textLimits.patterns=clamped.patterns;
+ result.textLimits.exceptions=clamped.exceptions;
  return result;
 }
 export async function saveAdvanced(chat:ChatRow,raw:unknown,actorId:number,version:number):Promise<ConfigRecord>{
@@ -82,6 +97,9 @@ export async function saveAdvanced(chat:ChatRow,raw:unknown,actorId:number,versi
  for(const key of Object.keys(parsed) as (keyof AdvancedSettings)[]){
   if(JSON.stringify(parsed[key])!==JSON.stringify(current.settings[key])&&!hasFeature(chat,key as AdvancedFeature,actorId))throw Object.assign(new Error('Esta función requiere un nivel Premium superior.'),{statusCode:402});
  }
+ const ruleSet=parseTextRules(parsed.textLimits.patterns,parsed.textLimits.exceptions,textRuleLimits(chatTier(chat,actorId)));
+ if(ruleSet.limitErrors.length)throw Object.assign(new Error(ruleSet.limitErrors[0]),{statusCode:402});
+ if(ruleSet.errors.length)throw Object.assign(new Error(ruleSet.errors[0]),{statusCode:400});
  if(parsed.silent.enabled && (!chat.settings.logs?.enabled || !chat.settings.logs.chatId))throw Object.assign(new Error('Configura un canal de registros antes de activar la moderación silenciosa.'),{statusCode:400});
  const saved=await withTransaction(async client=>{
   await client.query('SELECT pg_advisory_xact_lock($1)',[chat.chat_id]);

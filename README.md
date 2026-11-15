@@ -1,6 +1,6 @@
 # GBot Ultra
 
-Bot de administración de grupos de Telegram con Mini App, moderación y planes mediante Telegram Stars. Versión 2.13.0.
+Bot de administración de grupos de Telegram con Mini App, moderación y planes mediante Telegram Stars. Versión 2.14.0.
 
 - Captcha, antienlaces, antiflood, lista negra, advertencias y registro de moderación.
 - Moderación de artículos enriquecidos, bots invitados y ediciones; bloqueos opcionales de Live Photos, historias, spoilers y otros contenidos (Premium).
@@ -9,6 +9,7 @@ Bot de administración de grupos de Telegram con Mini App, moderación y planes 
 - Publicaciones programadas, filtro visual NSFW opcional, notas y automatizaciones.
 - Bloqueo de reacciones de todo el grupo y reporte mediante un emoji de reacción, con borrado opcional del mensaje (Pro).
 - Poda de miembros inactivos por días de silencio, con vista previa y resultado por miembro (Premium).
+- Reglas de palabras con comodines, condiciones AND, acción y duración propias, y excepciones: 30 reglas en Premium, 200 en Pro y 500 en Ultra.
 - API y servidor MCP para automatizaciones con claves por grupo, ámbitos de lectura y moderación, y límite de peticiones (Ultra).
 - Calidad de reglas con tendencias y revisión manual de falsos positivos (Ultra).
 - Reversión de baneos y silencios nuevos con vista previa y permisos comprobados (Pro).
@@ -40,6 +41,12 @@ Los proveedores externos son opcionales y se configuran por variables de entorno
 En **Mini App → Moderación**, o con `/quality` y `/undo`. Las métricas cubren lista negra, antienlaces, antiflood y bloqueos por contenido; no almacenan el mensaje original y se retienen 30 días. Los falsos positivos se marcan manualmente; no son una estimación automática de precisión.
 
 Solo se pueden deshacer baneos y silencios nuevos con estado previo guardado. La vista previa vence en cinco minutos y se vuelve a comprobar el estado antes de confirmar. No recupera mensajes borrados ni reincorpora usuarios. Los resultados inciertos requieren revisión manual y no se repiten automáticamente. Los baneos globales, CAS y decisiones de Alianzas se gestionan por sus herramientas propias.
+
+## Reglas de palabras
+
+En **Mini App → Centro Premium → Patrones y longitud**. Una regla por línea, con `*` entre fragmentos y `&&` para exigir varios términos en el texto. Cada regla puede definir su propia acción y duración al final de la línea: `compra && urgente :: mute :: 3600`. Las líneas que empiezan por `!` son excepciones y conservan el mensaje aunque coincida una regla; las que empiezan por `#` son notas para el administrador.
+
+El presupuesto depende del nivel del grupo: Premium admite 30 reglas con 5 términos, Pro 200 con 10 y Ultra 500 con 15. El panel muestra el límite vigente. Si el grupo baja de nivel, conserva la configuración pero deja de aplicar las reglas que ya no cubre.
 
 ## API y MCP para automatizaciones
 

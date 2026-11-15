@@ -22,47 +22,36 @@ import { onceOperation } from './operations.js';
 import { logger } from '../logger.js';
 import { expireNativeJoins } from './native-join.js';
 import { primaryBot } from './bot-runtime.js';
+import { compiledTextRules, evaluateTextRules, TEXT_RULE_LIMITS, type TextRule, type TextRuleAction } from './text-rules.js';
 export const advancedDataCache=new ReadCache(2000);
 export async function runtimeAdvanced(chat:ChatRow):Promise<AdvancedSettings>{const c=await advancedConfig(chat.chat_id);return effectiveAdvanced(chat,c.settings,c.actorId);}
 export async function scopeExemptions(chat:ChatRow,userId:number):Promise<string[]>{
  if(config.ownerIds.has(userId))return ['locks','raid','captcha','blacklist','antilink','antiflood'];
  const c=await advancedConfig(chat.chat_id);return hasFeature(chat,'trust',c.actorId)?trustedScopes(chat.chat_id,userId):[];
 }
-function matchesTextPattern(text:string,pattern:string):boolean{
- let offset=0;
- for(const part of pattern.trim().split('*').filter(Boolean)){
-  const index=text.indexOf(part,offset);
-  if(index===-1)return false;
-  offset=index+part.length;
- }
- return true;
+export interface ContentMatch{
+ type:string;
+ action:TextRuleAction;
+ durationSeconds:number;
+ pattern:TextRule|null;
 }
-export function contentMatch(message:Partial<Message>,settings:AdvancedSettings,skipPatterns=false):string|null{
+export function matchContent(message:Partial<Message>,settings:AdvancedSettings,skipPatterns=false):ContentMatch|null{
  const forward=message.forward_origin;
  const origin:typeof FORWARD_ORIGINS[number]|undefined=forward?.type==='user'?(forward.sender_user.is_bot?'bot':'person'):forward?.type;
- if(origin&&settings.forwarding.actions[origin])return 'forward:'+origin;
- const {patterns,maxLength}=settings.textLimits;
+ if(origin&&settings.forwarding.actions[origin])return {type:'forward:'+origin,action:settings.forwarding.actions[origin]!,durationSeconds:settings.forwarding.durationSeconds,pattern:null};
+ const {patterns,exceptions,maxLength}=settings.textLimits;
  if(!settings.locks.enabled&&!maxLength&&(!patterns||skipPatterns))return null;
  const content=messageContent(message);
  for(const type of settings.locks.enabled?settings.locks.types:[]){
-  if(type==='invite'&&content.links.some(link=>/(?:t\.me|telegram\.me)\/(?:\+|joinchat\/|[a-zA-Z0-9_]+)/i.test(link)))return type;
-  if(content.types.has(type))return type;
+  if(type==='invite'&&content.links.some(link=>/(?:t\.me|telegram\.me)\/(?:\+|joinchat\/|[a-zA-Z0-9_]+)/i.test(link)))return {type,action:settings.locks.action,durationSeconds:settings.locks.durationSeconds,pattern:null};
+  if(content.types.has(type))return {type,action:settings.locks.action,durationSeconds:settings.locks.durationSeconds,pattern:null};
  }
- if(maxLength&&content.text.length>maxLength&&Array.from(content.text).length>maxLength)return 'text_length';
+ if(maxLength&&content.text.length>maxLength&&Array.from(content.text).length>maxLength)return {type:'text_length',action:settings.textLimits.action,durationSeconds:settings.textLimits.durationSeconds,pattern:null};
  if(patterns&&!skipPatterns){
-  const normalize=(value:string)=>value.normalize('NFKC').toLowerCase();
-  const text=normalize(content.text);
-  if(normalize(patterns).split('\n').filter(line=>line.trim()).some(line=>line.split('&&').every(term=>matchesTextPattern(text,term))))return 'text_pattern';
+  const verdict=evaluateTextRules(compiledTextRules(patterns,exceptions,TEXT_RULE_LIMITS.ultra),content.text);
+  if(verdict.matched)return {type:'text_pattern',action:verdict.matched.action??settings.textLimits.action,durationSeconds:verdict.matched.durationSeconds??settings.textLimits.durationSeconds,pattern:verdict.matched};
  }
  return null;
-}
-export function contentRule(settings:AdvancedSettings,type:string){
- if(type.startsWith('forward:')){
-  const origin=type.slice(8) as typeof FORWARD_ORIGINS[number];
-  return {key:'forwarding',action:settings.forwarding.actions[origin]!,durationSeconds:settings.forwarding.durationSeconds} as const;
- }
- const key=type.startsWith('text_')?'textLimits':'locks';
- return {key,action:settings[key].action,durationSeconds:settings[key].durationSeconds} as const;
 }
 export function isNight(settings:AdvancedSettings['night'],now=new Date()):boolean{
  if(!settings.enabled)return false;
@@ -76,9 +65,11 @@ export function isNight(settings:AdvancedSettings['night'],now=new Date()):boole
 export async function advancedMessage(api:Api,chat:ChatRow,base:GroupSettings,message:Message,user:User,botId:number):Promise<{handled:boolean;settings:GroupSettings;observe:boolean}>{
  const settings=structuredClone(base);const a=await runtimeAdvanced(chat);const scopes=await scopeExemptions(chat,user.id);
  for(const key of ['blacklist','antilink','antiflood'] as const)if(scopes.includes(key))settings[key].enabled=false;
- const type=scopes.includes('locks')?null:contentMatch(message,a,scopes.includes('blacklist'));
- if(!type)return {handled:false,settings,observe:a.observation.enabled};
- const rule=contentRule(a,type);
+ const matched=scopes.includes('locks')?null:matchContent(message,a,scopes.includes('blacklist'));
+ if(!matched)return {handled:false,settings,observe:a.observation.enabled};
+ const type=matched.type;
+ const ruleKey:'forwarding'|'textLimits'|'locks' = type.startsWith('forward:') ? 'forwarding' : type.startsWith('text_') ? 'textLimits' : 'locks';
+ const rule={key:ruleKey,action:matched.action,durationSeconds:matched.durationSeconds};
  const metric=(outcome:'applied'|'observation'|'error')=>recordRuleEvent(chat.chat_id,message.message_id,rule.key+':'+type,ruleRevision(a[rule.key]),rule.action,outcome);
  try{await onceOperation(`content:${chat.chat_id}:${message.message_id}:${message.edit_date??0}`,async()=>{
   if(a.observation.enabled){await metric('observation');await logModeration({chatId:chat.chat_id,targetId:user.id,action:'observation',reason:tr("Contenido: ")+type,metadata:{would:rule.action}});return null;}

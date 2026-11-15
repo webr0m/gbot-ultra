@@ -18,7 +18,8 @@ import { DELEGATE_SCOPES, listDelegates, manageDelegate } from '../../services/d
 import { settingsOf } from '../../services/chat-cache.js';
 import { settingsPatchSchema } from '../../services/settings.js';
 import { getChatMemberSafe } from '../../utils/telegram.js';
-import { advancedDataCache, contentMatch, contentRule } from '../../services/advanced-engine.js';
+import { advancedDataCache, matchContent, runtimeAdvanced } from '../../services/advanced-engine.js';
+import { textRuleLimits } from '../../services/text-rules.js';
 import { onceOperation } from '../../services/operations.js';
 import { logModeration } from '../../db/repositories/moderation.js';
 import { allianceOverview, linkedAlliance, createAlliance, joinAlliance, leaveAlliance, proposeCase, reviewCase, rotateAllianceInvite, publishAllianceProfile, adoptAllianceProfile } from '../../services/alliances.js';
@@ -54,7 +55,7 @@ export function registerAdvancedRoutes(app:FastifyInstance,bot:Bot<AppContext>):
    hasFeature(chat,'alliances',auth.user.id)?allianceOverview(chatId,auth.user.id):(async()=>{const a=await linkedAlliance(chatId);return a?{id:a.id,name:a.name,inactive:true}:null;})(),
    many("SELECT key,state,created_at FROM operation_receipts WHERE state<>'done' AND key LIKE $1 UNION ALL SELECT 'update:'||update_id::text AS key,state,created_at FROM update_receipts WHERE state<>'done' AND chat_id=$2 ORDER BY created_at DESC LIMIT 30",['%:'+chatId+':%',chatId]),
   ]);
-  return {ok:true,...record,developer:auth.user.id===DEVELOPER_ID,cas:casHealth(),tier:chatTier(chat,auth.user.id),tiers:TIER_CATALOG,features:Object.entries(ADVANCED_FEATURES).map(([key,f])=>({key,...f,allowed:hasFeature(chat,key as AdvancedFeature,auth.user.id)})),trust,responses,notes,history,raid,alliance,operations};
+  return {ok:true,...record,developer:auth.user.id===DEVELOPER_ID,cas:casHealth(),tier:chatTier(chat,auth.user.id),textRuleLimits:textRuleLimits(chatTier(chat,auth.user.id)),tiers:TIER_CATALOG,features:Object.entries(ADVANCED_FEATURES).map(([key,f])=>({key,...f,allowed:hasFeature(chat,key as AdvancedFeature,auth.user.id)})),trust,responses,notes,history,raid,alliance,operations};
  });
  app.patch('/api/advanced',async request=>{
   const b=bodyOf(request);const {auth,chat,ctx}=await access(request,parseChatId(b.chatId));
@@ -131,8 +132,8 @@ export function registerAdvancedRoutes(app:FastifyInstance,bot:Bot<AppContext>):
  });
  app.post('/api/advanced/simulate',async request=>{
   const b=bodyOf(request);const {chat}=await access(request,parseChatId(b.chatId),'observation');const v=z.object({text:z.string().max(4000),type:z.enum(['text',...CONTENT_TYPES]),origin:z.enum(FORWARD_ORIGINS).optional(),messageCount:z.number().int().min(1).max(100).default(1)}).parse(b);
-  const a=(await advancedConfig(chat.chat_id)).settings;const message=contentExample(v.text,v.type,v.origin) as any;
-  const matches:{rule:string;action:string}[]=[];const content=contentMatch(message,a);if(content)matches.push({rule:'Contenido: '+content,action:contentRule(a,content).action});
+  const a=await runtimeAdvanced(chat);const message=contentExample(v.text,v.type,v.origin) as any;
+  const matches:{rule:string;action:string}[]=[];const content=matchContent(message,a);if(content)matches.push({rule:'Contenido: '+content.type+(content.pattern?' (patrón '+content.pattern.line+')':''),action:content.action});
   const base=settingsOf(chat);const rows=base.blacklist.enabled?await listBlacklist(chat.chat_id):[];
   const labels={blacklist:'Lista negra',antilink:'Antienlaces',antiflood:'Antiflood dentro de '+base.antiflood.windowSeconds+' segundos'};
   for(const hit of antispamHits(message,base,rows,v.messageCount))matches.push({rule:labels[hit.rule],action:hit.action});
