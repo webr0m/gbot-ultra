@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
-  sql: vi.fn(), release: vi.fn(), cleanup: vi.fn(), expire: vi.fn(), premium: vi.fn(),
+  sql: vi.fn(), release: vi.fn(), cleanup: vi.fn(), expire: vi.fn(), premium: vi.fn(), many: vi.fn(),
 }));
 vi.mock("../src/config.js", () => ({ config: { premiumReminderDays: 3,botToken:'123456789:FAKE' } }));
 vi.mock('../src/services/publications.js',()=>({runPublications:async()=>undefined}));
 vi.mock('../src/services/visual-moderation.js',()=>({runVisualJobs:async()=>undefined}));
 vi.mock('../src/services/ai-assistant.js',()=>({cleanupAI:async()=>undefined}));
 vi.mock('../src/services/branded-bots.js',()=>({cleanupBrands:async()=>undefined}));
-vi.mock("../src/db/pool.js", () => ({ pool: { connect: async () => ({ query: mocks.sql, release: mocks.release }) }, query: mocks.cleanup }));
+vi.mock("../src/db/pool.js", () => ({ pool: { connect: async () => ({ query: mocks.sql, release: mocks.release }) }, query: mocks.cleanup, many: mocks.many }));
 vi.mock("../src/services/premium.js", () => ({ getExpiringPremiumChats: mocks.premium, markPremiumReminderSent: vi.fn() }));
 vi.mock("../src/services/captcha.js", () => ({ expireCaptchas: mocks.expire }));
 vi.mock('../src/services/advanced-engine.js',()=>({runAdvancedSchedules:async()=>undefined}));
@@ -24,6 +24,7 @@ beforeEach(() => {
   mocks.expire.mockResolvedValue(0);
   mocks.premium.mockResolvedValue([]);
   mocks.cleanup.mockResolvedValue(undefined);
+  mocks.many.mockResolvedValue([]);
 });
 
 describe("persistent scheduler", () => {

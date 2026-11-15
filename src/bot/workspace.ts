@@ -15,7 +15,7 @@ export function registerWorkspaceBot(bot:Bot<AppContext>){
  async function open(ctx:AppContext,tool:'setup'|'inbox'|'quality'|'undo',chatId?:number){
   const title=tool==='setup'?tr("Asistente de instalación"):tool==='inbox'?tr("Bandeja unificada"):tool==='quality'?tr("Calidad de reglas"):tr("Deshacer sanciones");
   const feature=tool==='quality'?'ruleQuality':tool==='undo'?'undoSanctions':tool==='inbox'?'inbox':null;
-  const denied=()=>tool==='quality'?tr("Calidad de reglas requiere Ultra."):tool==='undo'?tr("Deshacer sanciones requiere Pro o Ultra."):tr("La bandeja unificada requiere Pro o Ultra.");
+  const denied=()=>tool==='quality'?tr("Calidad de reglas requiere Pro o Ultra."):tool==='undo'?tr("Deshacer sanciones requiere Pro o Ultra."):tr("La bandeja unificada requiere Pro o Ultra.");
   if(ctx.chat?.type!=='private'){
    if(!(await ensureGroupAdmin(ctx)))return;
    if(feature&&!hasFeature(ctx.app.chatRow,feature,ctx.from!.id)){await notify(ctx,denied());return;}

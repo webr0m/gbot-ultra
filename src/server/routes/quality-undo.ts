@@ -3,10 +3,10 @@ import type {Bot} from 'grammy';
 import {z} from 'zod';
 import type {AppContext} from '../../bot/context.js';
 import {runtimeForChat} from '../../services/branded-bots.js';
-import {hasFeature} from '../../services/entitlements.js';
+import {chatTier,hasFeature} from '../../services/entitlements.js';
 import {withFreshTelegramReads} from '../../services/telegram-cache.js';
 import {settingsOf} from '../../services/chat-cache.js';
-import {ruleQuality,reviewRule} from '../../services/rule-quality.js';
+import {RULE_WINDOWS,ruleQuality,reviewRule} from '../../services/rule-quality.js';
 import {listSanctions,previewUndo,applyUndo} from '../../services/sanction-journal.js';
 import {ApiError,requireAuth,requireChat,parseChatId,parseIntParam,bodyOf} from '../helpers.js';
 
@@ -14,12 +14,15 @@ export function registerQualityUndoRoutes(app:FastifyInstance,primary:Bot<AppCon
  async function access(request:Parameters<typeof requireAuth>[0],chatId:number,feature:'ruleQuality'|'undoSanctions'){
   const auth=requireAuth(request),runtime=await runtimeForChat(chatId),bot=runtime?.bot??primary;
   const chat=await requireChat(bot.api,chatId,auth);
-  if(!hasFeature(chat,feature,auth.user.id))throw new ApiError(402,feature==='ruleQuality'?'Calidad de reglas requiere Ultra.':'Deshacer sanciones requiere Pro o Ultra.');
+  if(!hasFeature(chat,feature,auth.user.id))throw new ApiError(402,feature==='ruleQuality'?'Calidad de reglas requiere Pro o Ultra.':'Deshacer sanciones requiere Pro o Ultra.');
   return {api:bot.api,botId:bot.botInfo.id,chatId,chat,settings:await settingsOf(chat),actorId:auth.user.id,actorName:auth.user.first_name,source:'miniapp' as const};
  }
  app.get('/api/review/quality',async(request,reply)=>{
   const q=request.query as Record<string,unknown>,ctx=await access(request,parseChatId(q.chat_id),'ruleQuality');reply.header('Cache-Control','no-store');
-  return {ok:true,...await ruleQuality(ctx.chatId,z.coerce.number().pipe(z.union([z.literal(7),z.literal(14),z.literal(30)])).parse(q.days??14),parseIntParam(q.offset,0,0,1000000))};
+  const tier=chatTier(ctx.chat,ctx.actorId),windows=RULE_WINDOWS[tier];
+  const days=z.coerce.number().int().positive().parse(q.days??14);
+  if(!windows.includes(days))throw new ApiError(400,`Elige un período disponible: ${windows.join(', ')} días.`);
+  return {ok:true,...await ruleQuality(ctx.chatId,days,parseIntParam(q.offset,0,0,1000000),tier)};
  });
  app.post('/api/review/quality',async request=>withFreshTelegramReads(async()=>{
   const b=bodyOf(request),ctx=await access(request,parseChatId(b.chatId),'ruleQuality');

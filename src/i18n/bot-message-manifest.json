@@ -1,5 +1,5 @@
 {
-  "version": "2.13.0",
+  "version": "2.15.0",
   "languages": [
     "es",
     "en",
@@ -151,7 +151,7 @@
     "Caduca: <b>{0}</b> ({1} día(s))\n\n",
     "Caducidad de advertencias",
     "Calidad de reglas",
-    "Calidad de reglas requiere Ultra.",
+    "Calidad de reglas requiere Pro o Ultra.",
     "Cambiar el idioma del grupo",
     "Cambiar la información",
     "Cambio de permisos externo durante un cierre pendiente; se conservan los cambios",

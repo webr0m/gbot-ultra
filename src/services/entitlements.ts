@@ -5,7 +5,7 @@ export type PremiumTier = 'free' | 'premium' | 'pro' | 'ultra';
 export const TIER_RANK: Record<PremiumTier, number> = { free: 0, premium: 1, pro: 2, ultra: 3 };
 export const ADVANCED_FEATURES = {
  undoSanctions: {tier: 'pro', label: tr("Deshacer sanciones")},
- ruleQuality: {tier: 'ultra', label: tr("Calidad de reglas")},
+ ruleQuality: {tier: 'pro', label: tr("Calidad de reglas")},
  raid: { tier: 'premium', label: tr("Antirraids") },
  locks: { tier: 'premium', label: tr("Bloqueos por contenido") },
  forwarding: { tier: 'premium', label: tr("Reenvíos por origen") },

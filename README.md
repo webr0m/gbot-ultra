@@ -1,6 +1,6 @@
 # GBot Ultra
 
-Bot de administración de grupos de Telegram con Mini App, moderación y planes mediante Telegram Stars. Versión 2.14.0.
+Bot de administración de grupos de Telegram con Mini App, moderación y planes mediante Telegram Stars. Versión 2.15.0.
 
 - Captcha, antienlaces, antiflood, lista negra, advertencias y registro de moderación.
 - Moderación de artículos enriquecidos, bots invitados y ediciones; bloqueos opcionales de Live Photos, historias, spoilers y otros contenidos (Premium).
@@ -11,7 +11,7 @@ Bot de administración de grupos de Telegram con Mini App, moderación y planes 
 - Poda de miembros inactivos por días de silencio, con vista previa y resultado por miembro (Premium).
 - Reglas de palabras con comodines, condiciones AND, acción y duración propias, y excepciones: 30 reglas en Premium, 200 en Pro y 500 en Ultra.
 - API y servidor MCP para automatizaciones con claves por grupo, ámbitos de lectura y moderación, y límite de peticiones (Ultra).
-- Calidad de reglas con tendencias y revisión manual de falsos positivos (Ultra).
+- Calidad de reglas con tendencias y revisión manual de falsos positivos: 100 días de historial en Pro y un año en Ultra.
 - Reversión de baneos y silencios nuevos con vista previa y permisos comprobados (Pro).
 - Asistente de IA opcional, bots con marca propia y Alianzas con revisión local (Ultra).
 
@@ -38,7 +38,7 @@ Los proveedores externos son opcionales y se configuran por variables de entorno
 
 ## Revisión de moderación
 
-En **Mini App → Moderación**, o con `/quality` y `/undo`. Las métricas cubren lista negra, antienlaces, antiflood y bloqueos por contenido; no almacenan el mensaje original y se retienen 30 días. Los falsos positivos se marcan manualmente; no son una estimación automática de precisión.
+En **Mini App → Moderación**, o con `/quality` y `/undo`. Las métricas cubren lista negra, antienlaces, antiflood y bloqueos por contenido; no almacenan el mensaje original. La conservación depende del nivel del grupo: 100 días en Pro y un año en Ultra. Premium conserva 30 días y no abre la herramienta. El panel ofrece solo los períodos disponibles para el nivel y avisa cuando se pide un período mayor. Los falsos positivos se marcan manualmente; no son una estimación automática de precisión.
 
 Solo se pueden deshacer baneos y silencios nuevos con estado previo guardado. La vista previa vence en cinco minutos y se vuelve a comprobar el estado antes de confirmar. No recupera mensajes borrados ni reincorpora usuarios. Los resultados inciertos requieren revisión manual y no se repiten automáticamente. Los baneos globales, CAS y decisiones de Alianzas se gestionan por sus herramientas propias.
 
