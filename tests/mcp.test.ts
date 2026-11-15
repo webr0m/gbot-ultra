@@ -17,7 +17,7 @@ vi.mock("../src/config.js", () => ({
     databaseUrl: "",
     botToken: "test-token",
     devMode: false,
-    version: "2.12.0",
+    version: "2.13.0",
   },
 }));
 vi.mock("../src/db/pool.js", () => ({
@@ -145,7 +145,7 @@ describe("Servidor MCP", () => {
     expect(response.statusCode).toBe(200);
     const body = response.json();
     expect(body.result.protocolVersion).toBe("2025-06-18");
-    expect(body.result.serverInfo.version).toBe("2.12.0");
+    expect(body.result.serverInfo.version).toBe("2.13.0");
   });
 
   it("acepta una notificación sin cuerpo", async () => {

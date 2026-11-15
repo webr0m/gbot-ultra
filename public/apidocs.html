@@ -81,7 +81,7 @@
    <div class="grid">
     <div class="card"><span class="badge">CABECERA</span><h3>Bearer</h3><p>Cada petición incluye <code>Authorization: Bearer &lt;clave&gt;</code>. Una clave anulada deja de funcionar de inmediato.</p></div>
     <div class="card"><span class="badge scope-read">ÁMBITO</span><h3>Lectura</h3><p>Permite consultar miembros, estadísticas, ajustes e historial de moderación. No aplica sanciones.</p></div>
-    <div class="card"><span class="badge scope-moderate">ÁMBITO</span><h3>Moderación</h3><p>Permite silenciar, expulsar, banear, avisar y revertir. Requiere además los permisos de administrador vigentes en Telegram.</p></div>
+    <div class="card"><span class="badge scope-moderate">ÁMBITO</span><h3>Moderación</h3><p>Permite silenciar, expulsar, banear, avisar, revertir y administrar administradores. Requiere además los permisos de administrador vigentes en Telegram.</p></div>
     <div class="card"><span class="badge">LÍMITE</span><h3>60 por minuto</h3><p>Cada clave admite 60 peticiones por minuto. Las respuestas incluyen el margen disponible.</p></div>
    </div>
    <p class="note">Las claves son privadas de cada grupo. La API solo responde mientras el grupo mantiene el plan Ultra y la clave no está anulada. Las acciones nunca superan los permisos de Telegram del bot ni de la persona que creó la clave.</p>
@@ -98,6 +98,8 @@
       <tr><td class="method">GET</td><td><code>/api/v1/settings</code></td><td>lectura</td><td>Ajustes vigentes del grupo.</td></tr>
       <tr><td class="method">GET</td><td><code>/api/v1/moderation/log</code></td><td>lectura</td><td>Historial de moderación con actor y motivo.</td></tr>
       <tr><td class="method post">POST</td><td><code>/api/v1/moderation</code></td><td>moderación</td><td>Silencia, expulsa, banea, desbanea, desilencia o avisa a un miembro.</td></tr>
+      <tr><td class="method">GET</td><td><code>/api/v1/admins</code></td><td>lectura</td><td>Administradores del grupo con su rango, su título personalizado y sus permisos.</td></tr>
+      <tr><td class="method post">POST</td><td><code>/api/v1/admins</code></td><td>moderación</td><td>Promueve a un miembro como administrador o degrada a un administrador.</td></tr>
      </tbody>
     </table>
    </div>
@@ -125,6 +127,8 @@
       <tr><td><code>get_settings</code></td><td>lectura</td><td>Ajustes vigentes del grupo.</td></tr>
       <tr><td><code>list_moderation_log</code></td><td>lectura</td><td>Últimas acciones de moderación con motivo y responsable.</td></tr>
       <tr><td><code>moderate_user</code></td><td>moderación</td><td>Silencia, expulsa, banea, desbanea, desilencia o avisa a un miembro.</td></tr>
+      <tr><td><code>list_admins</code></td><td>lectura</td><td>Administradores del grupo con su rango, su título personalizado y sus permisos.</td></tr>
+      <tr><td><code>manage_admin</code></td><td>moderación</td><td>Promueve a un miembro como administrador o degrada a un administrador.</td></tr>
      </tbody>
     </table>
     <h3>Versiones del protocolo</h3>
@@ -144,6 +148,11 @@
     <h3>Actividad de la última semana</h3>
     <pre><code>curl "https://gbot.webrom.cc/api/v1/stats?days=7" \
   -H "Authorization: Bearer gbot_live_…"</code></pre>
+    <h3>Promover a un moderador del grupo</h3>
+    <pre><code>curl -X POST https://gbot.webrom.cc/api/v1/admins \
+  -H "Authorization: Bearer gbot_live_…" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"promote","userId":123456789,"preset":"moderator","customTitle":"Soporte"}'</code></pre>
    </div>
 
    <h2>Errores y seguridad</h2>

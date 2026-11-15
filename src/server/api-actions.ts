@@ -15,13 +15,16 @@ import { getUser } from "../db/repositories/users.js";
 import { settingsOf } from "../services/chat-cache.js";
 import {
   banUser,
+  demoteUser,
   kickUser,
   ModerationError,
   muteUser,
+  promoteUser,
   unbanUser,
   unmuteUser,
   warnUser,
   type ModerationContext,
+  type PromotePreset,
   type TargetInfo,
   type WarnResult,
 } from "../services/moderation.js";
@@ -39,6 +42,24 @@ export const MODERATION_ACTIONS = [
 ] as const;
 export type ModerationAction = (typeof MODERATION_ACTIONS)[number];
 
+export const ADMIN_ACTIONS = ["promote", "demote"] as const;
+export type AdminAction = (typeof ADMIN_ACTIONS)[number];
+
+export const ADMIN_PRESETS = ["moderator", "full"] as const;
+
+const ADMIN_RIGHT_KEYS = [
+  "can_manage_chat",
+  "can_delete_messages",
+  "can_manage_video_chats",
+  "can_restrict_members",
+  "can_promote_members",
+  "can_change_info",
+  "can_invite_users",
+  "can_pin_messages",
+  "can_manage_topics",
+  "can_manage_tags",
+] as const;
+
 export interface ApiActor {
   id: string;
   name: string;
@@ -50,6 +71,14 @@ export interface ApiModerationResult {
   action: ModerationAction;
   target?: TargetInfo;
   warning?: WarnResult;
+  message: string;
+}
+
+export interface ApiAdminResult {
+  ok: true;
+  action: AdminAction;
+  target: TargetInfo;
+  preset?: PromotePreset;
   message: string;
 }
 
@@ -148,6 +177,32 @@ export async function readApiStats(
 
 export function readApiSettings(chat: ChatRow): Record<string, unknown> {
   return { ok: true, settings: settingsOf(chat) };
+}
+
+export async function readApiAdmins(
+  api: Api,
+  chatId: number,
+): Promise<Record<string, unknown>> {
+  const members = await api.getChatAdministrators(chatId);
+  const items = members.map((member) => {
+    const raw = member as unknown as Record<string, unknown>;
+    const isOwner = member.status === "creator";
+    return {
+      id: member.user.id,
+      displayName: displayName(member.user),
+      username: member.user.username ?? null,
+      status: member.status,
+      customTitle:
+        typeof raw.custom_title === "string" && raw.custom_title.length > 0
+          ? raw.custom_title
+          : null,
+      isOwner,
+      rights: Object.fromEntries(
+        ADMIN_RIGHT_KEYS.map((key) => [key, isOwner || raw[key] === true]),
+      ),
+    };
+  });
+  return { ok: true, total: items.length, items };
 }
 
 export async function readApiModerationLog(
@@ -250,5 +305,40 @@ export async function applyApiModeration(
     action,
     target,
     message: `${action}: ${target.name}.`,
+  };
+}
+
+export async function applyApiAdminChange(
+  context: ModerationContext,
+  action: AdminAction,
+  target: TargetInfo,
+  preset: PromotePreset,
+  customTitle: string | null,
+  actor: ApiActor,
+  channel: string,
+): Promise<ApiAdminResult> {
+  if (action === "promote") await promoteUser(context, target, preset, customTitle);
+  else await demoteUser(context, target);
+  await logModeration({
+    chatId: context.chatId,
+    actorId: context.actorId,
+    targetId: target.userId,
+    action: `${channel}_${action}`,
+    reason: customTitle,
+    metadata: {
+      keyId: actor.id,
+      keyName: actor.name,
+      ...(action === "promote" ? { preset } : {}),
+    },
+  });
+  return {
+    ok: true,
+    action,
+    target,
+    preset: action === "promote" ? preset : undefined,
+    message:
+      action === "promote"
+        ? `${target.name} ahora es administrador.`
+        : `${target.name} ya no es administrador.`,
   };
 }

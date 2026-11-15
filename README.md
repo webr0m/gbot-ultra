@@ -1,6 +1,6 @@
 # GBot Ultra
 
-Bot de administración de grupos de Telegram con Mini App, moderación y planes mediante Telegram Stars. Versión 2.12.0.
+Bot de administración de grupos de Telegram con Mini App, moderación y planes mediante Telegram Stars. Versión 2.13.0.
 
 - Captcha, antienlaces, antiflood, lista negra, advertencias y registro de moderación.
 - Moderación de artículos enriquecidos, bots invitados y ediciones; bloqueos opcionales de Live Photos, historias, spoilers y otros contenidos (Premium).
@@ -45,7 +45,9 @@ Solo se pueden deshacer baneos y silencios nuevos con estado previo guardado. La
 
 La API pública expone un grupo a herramientas externas y requiere el plan Ultra de ese grupo. Las claves se crean en el panel, se guardan cifradas solo como hash y se muestran una sola vez; cada clave tiene sus ámbitos de lectura o moderación y un límite de 60 peticiones por minuto. Las acciones quedan en el registro de moderación del grupo con la clave que las originó. La referencia está en `public/apidocs.html` y se publica en `/apidocs`.
 
-El mismo grupo publica un servidor MCP con transporte Streamable HTTP en `/mcp`, autenticado con la misma clave y limitado por el mismo ámbito. Habla la revisión `2026-07-28` del protocolo y acepta el saludo clásico de los clientes anteriores. Expone `list_members`, `get_stats`, `get_settings`, `list_moderation_log` y `moderate_user`, que aplica el mismo control de permisos y el mismo registro que el panel.
+El mismo grupo publica un servidor MCP con transporte Streamable HTTP en `/mcp`, autenticado con la misma clave y limitado por el mismo ámbito. Habla la revisión `2026-07-28` del protocolo y acepta el saludo clásico de los clientes anteriores. Expone `list_members`, `get_stats`, `get_settings`, `list_moderation_log`, `list_admins`, `moderate_user` y `manage_admin`, que aplican el mismo control de permisos y el mismo registro que el panel.
+
+La gestión de administradores por API y MCP está en `/api/v1/admins`: listar administradores con sus permisos y promover o degradar a un miembro. Ninguna promoción puede surpassar los permisos de Telegram de quien creó la clave, y el creador del grupo no se puede promover ni degradar.
 
 ## Configuración privada
 

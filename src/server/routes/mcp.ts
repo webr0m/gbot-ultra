@@ -15,15 +15,20 @@ import {
   type ApiKeyRow,
 } from "../../services/api-access.js";
 import {
+  ADMIN_ACTIONS,
+  ADMIN_PRESETS,
+  applyApiAdminChange,
   applyApiModeration,
   apiModerationContext,
   ApiTargetNotFoundError,
   MODERATION_ACTIONS,
+  readApiAdmins,
   readApiMembers,
   readApiModerationLog,
   readApiSettings,
   readApiStats,
   resolveApiTarget,
+  type AdminAction,
   type ModerationAction,
 } from "../api-actions.js";
 import { parseIntParam } from "../helpers.js";
@@ -182,6 +187,48 @@ const TOOLS: ToolDefinition[] = [
     },
     scope: "moderate",
   },
+  {
+    name: "list_admins",
+    title: "Listar administradores",
+    description:
+      "Devuelve los administradores del grupo, su rango, su título personalizado y los permisos que tienen.",
+    inputSchema: { type: "object", additionalProperties: false },
+    scope: "read",
+  },
+  {
+    name: "manage_admin",
+    title: "Gestionar un administrador",
+    description:
+      "Promueve a un miembro como administrador o degrada a un administrador, respetando los permisos del actor y del bot.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: [...ADMIN_ACTIONS],
+          description: "Acción que se va a aplicar.",
+        },
+        userId: {
+          type: "integer",
+          description: "Identificador numérico de Telegram del miembro.",
+        },
+        preset: {
+          type: "string",
+          enum: [...ADMIN_PRESETS],
+          description:
+            "Permisos al promover: moderator deja los básicos y full concede el conjunto completo.",
+        },
+        customTitle: {
+          type: "string",
+          maxLength: 16,
+          description: "Título personalizado del administrador.",
+        },
+      },
+      required: ["action", "userId"],
+      additionalProperties: false,
+    },
+    scope: "moderate",
+  },
 ];
 
 const moderateSchema = z.object({
@@ -189,6 +236,13 @@ const moderateSchema = z.object({
   userId: z.number().int().safe().positive(),
   reason: z.string().trim().max(500).optional(),
   durationSeconds: z.number().int().min(0).max(2_592_000).optional(),
+});
+
+const adminSchema = z.object({
+  action: z.enum(ADMIN_ACTIONS),
+  userId: z.number().int().safe().positive(),
+  preset: z.enum(ADMIN_PRESETS).optional(),
+  customTitle: z.string().trim().max(16).optional(),
 });
 
 function bearerToken(request: FastifyRequest): string {
@@ -334,6 +388,48 @@ export function registerMcpRoutes(
             key,
             "mcp",
             "Regla del agente MCP",
+          );
+        } catch (error) {
+          if (error instanceof ModerationError)
+            return { ok: false, error: error.userMessage };
+          throw error;
+        }
+      }
+      case "list_admins":
+        return readApiAdmins(bot.api, chat!.chat_id);
+      case "manage_admin": {
+        const parsed = adminSchema.safeParse(args);
+        if (!parsed.success)
+          return {
+            ok: false,
+            error: "Datos de administrador no válidos.",
+            issues: parsed.error.issues.map((issue) => issue.message),
+          };
+        const body = parsed.data;
+        let target;
+        try {
+          target = await resolveApiTarget(bot.api, chat!.chat_id, body.userId);
+        } catch (error) {
+          if (error instanceof ApiTargetNotFoundError)
+            return { ok: false, error: error.message };
+          throw error;
+        }
+        const context = apiModerationContext(
+          bot.api,
+          chat!,
+          bot.botInfo.id,
+          key,
+          "MCP",
+        );
+        try {
+          return await applyApiAdminChange(
+            context,
+            body.action as AdminAction,
+            target,
+            body.preset ?? "moderator",
+            body.customTitle ?? null,
+            key,
+            "mcp",
           );
         } catch (error) {
           if (error instanceof ModerationError)
